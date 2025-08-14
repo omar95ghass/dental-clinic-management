@@ -45,6 +45,12 @@ class DoctorDashboard {
             addPrescriptionBtn.addEventListener('click', () => this.showAddPrescriptionModal());
         }
 
+        // Quick actions duplicates
+        const openHistoryQuick = document.getElementById('openHistoryBtnQuick');
+        if (openHistoryQuick) openHistoryQuick.addEventListener('click', () => this.openHistoryModal());
+        const openFinancialQuick = document.getElementById('openFinancialBtnQuick');
+        if (openFinancialQuick) openFinancialQuick.addEventListener('click', () => this.openFinancialModal());
+
         // Modal close buttons
         document.querySelectorAll('.modal-close').forEach(btn => {
             btn.addEventListener('click', (e) => {

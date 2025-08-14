@@ -65,7 +65,7 @@ function handleGetRequest($pdo) {
                 FROM appointments a
                 JOIN patients p ON a.patient_id = p.id
                 WHERE a.patient_id = ?
-                ORDER BY a.appointment_date DESC, a.appointment_time DESC
+                ORDER BY a.appointment_date DESC, a.appointment_date DESC
             ");
             $stmt->execute([$patient_id]);
         } elseif ($date) {
@@ -77,7 +77,7 @@ function handleGetRequest($pdo) {
                 FROM appointments a
                 JOIN patients p ON a.patient_id = p.id
                 WHERE DATE(a.appointment_date) = ?
-                ORDER BY a.appointment_time
+                ORDER BY a.appointment_date
             ");
             $stmt->execute([$date]);
         } else {
@@ -89,7 +89,7 @@ function handleGetRequest($pdo) {
                 FROM appointments a
                 JOIN patients p ON a.patient_id = p.id
                 WHERE a.appointment_date >= CURDATE()
-                ORDER BY a.appointment_date, a.appointment_time
+                ORDER BY a.appointment_date, a.appointment_date
             ");
             $stmt->execute();
         }
@@ -106,7 +106,7 @@ function handleGetRequest($pdo) {
 function handlePostRequest($pdo) {
     $input = json_decode(file_get_contents('php://input'), true);
     
-    $required_fields = ['patient_id', 'appointment_date', 'appointment_time'];
+    $required_fields = ['patient_id', 'appointment_date', 'appointment_date'];
     
     foreach ($required_fields as $field) {
         if (!isset($input[$field]) || empty($input[$field])) {
@@ -121,9 +121,9 @@ function handlePostRequest($pdo) {
         $stmt = $pdo->prepare("
             SELECT COUNT(*) as count
             FROM appointments 
-            WHERE appointment_date = ? AND appointment_time = ?
+            WHERE appointment_date = ? AND appointment_date = ?
         ");
-        $stmt->execute([$input['appointment_date'], $input['appointment_time']]);
+        $stmt->execute([$input['appointment_date'], $input['appointment_date']]);
         $existing = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
         
         if ($existing > 0) {
@@ -134,14 +134,14 @@ function handlePostRequest($pdo) {
         
         // Insert new appointment
         $stmt = $pdo->prepare("
-            INSERT INTO appointments (patient_id, appointment_date, appointment_time, notes, status, created_at)
+            INSERT INTO appointments (patient_id, appointment_date, appointment_date, notes, status, created_at)
             VALUES (?, ?, ?, ?, 'scheduled', NOW())
         ");
         
         $stmt->execute([
             $input['patient_id'],
             $input['appointment_date'],
-            $input['appointment_time'],
+            $input['appointment_date'],
             $input['notes'] ?? null
         ]);
         
@@ -178,9 +178,9 @@ function handlePutRequest($pdo) {
             $values[] = $input['appointment_date'];
         }
         
-        if (isset($input['appointment_time'])) {
-            $fields[] = 'appointment_time = ?';
-            $values[] = $input['appointment_time'];
+        if (isset($input['appointment_date'])) {
+            $fields[] = 'appointment_date = ?';
+            $values[] = $input['appointment_date'];
         }
         
         if (isset($input['notes'])) {
@@ -200,15 +200,15 @@ function handlePutRequest($pdo) {
         }
         
         // Check if new time slot is available (if time/date is being changed)
-        if (isset($input['appointment_date']) || isset($input['appointment_time'])) {
+        if (isset($input['appointment_date']) || isset($input['appointment_date'])) {
             $check_date = $input['appointment_date'] ?? null;
-            $check_time = $input['appointment_time'] ?? null;
+            $check_time = $input['appointment_date'] ?? null;
             
             if ($check_date && $check_time) {
                 $stmt = $pdo->prepare("
                     SELECT COUNT(*) as count
                     FROM appointments 
-                    WHERE appointment_date = ? AND appointment_time = ? AND id != ?
+                    WHERE appointment_date = ? AND appointment_date = ? AND id != ?
                 ");
                 $stmt->execute([$check_date, $check_time, $appointment_id]);
                 $existing = $stmt->fetch(PDO::FETCH_ASSOC)['count'];

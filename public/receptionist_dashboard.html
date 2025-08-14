@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم السكرتيرة - عيادة الأسنان</title>
+    <!-- Tailwind CSS from CDN -->
+    <script src="assets/css/tailwindcss.css"></script>
+    <!-- Font Awesome for Icons (local copy) -->
+    <link rel="stylesheet" href="assets/css/all/fontawesome-free-6.6.0-web/css/all.min.css">
+    <style>
+        @import url('assets/css/css2.css?family=Tajawal:wght@200;300;400;500;700;800;900&display=swap');
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: linear-gradient(135deg, #2a52be, #00d2ff);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .sidebar {
+            width: 250px;
+            transition: all 0.3s ease;
+        }
+        .sidebar-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .active-tab {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.5);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .selected-patient {
+            background: rgba(255, 255, 255, 0.2) !important;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen text-white">
+
+    <!-- Sidebar -->
+    <aside class="sidebar fixed right-0 top-0 h-full p-6 text-white glass-card">
+        <div class="flex items-center justify-center mb-10">
+            <h1 class="text-3xl font-bold">
+                <span class="text-white">عيادة</span> <span class="text-[#00d2ff]">الأسنان</span>
+            </h1>
+        </div>
+        <nav>
+            <ul>
+                <li class="mb-4">
+                    <a href="#" data-tab="patients-tab" class="tab-button sidebar-item flex items-center p-4 rounded-xl font-medium transition-all active-tab">
+                        <i class="fas fa-users ml-3"></i>
+                        <span>قائمة المرضى</span>
+                    </a>
+                </li>
+                <li class="mb-4">
+                    <a href="#" data-tab="appointments-tab" class="tab-button sidebar-item flex items-center p-4 rounded-xl font-medium transition-all">
+                        <i class="fas fa-calendar-alt ml-3"></i>
+                        <span>المواعيد</span>
+                    </a>
+                </li>
+                <li class="mb-4">
+                    <a href="#" data-tab="settings-tab" class="tab-button sidebar-item flex items-center p-4 rounded-xl font-medium transition-all">
+                        <i class="fas fa-cogs ml-3"></i>
+                        <span>الإعدادات</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="sidebar-item flex items-center p-4 rounded-xl font-medium text-red-300 hover:text-white transition-all">
+                        <i class="fas fa-sign-out-alt ml-3"></i>
+                        <span>تسجيل الخروج</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 p-8 mr-[250px] transition-all">
+        
+        <!-- Patients Tab -->
+        <div id="patients-tab" class="tab-content active">
+            <header class="flex justify-between items-center mb-8">
+                <h2 class="text-4xl font-bold">قائمة المرضى</h2>
+                <button id="addPatientBtn" class="bg-[#00d2ff] hover:bg-[#00b3e6] text-white font-bold py-3 px-6 rounded-xl transition-all flex items-center">
+                    <i class="fas fa-plus ml-2"></i>
+                    <span>إضافة مريض جديد</span>
+                </button>
+            </header>
+
+            <!-- Search and Patient List -->
+            <div class="glass-card p-6">
+                <div class="relative mb-6">
+                    <input type="text" id="patientSearch" placeholder="ابحث عن مريض بالاسم أو رقم الهاتف..." class="w-full p-4 pr-12 rounded-xl glass-card text-white placeholder-white::placeholder">
+                    <i class="fas fa-search absolute right-4 top-1/2 -translate-y-1/2 text-white/50"></i>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-right table-auto">
+                        <thead>
+                            <tr class="text-gray-300 border-b-2 border-white/20">
+                                <th class="py-3 px-4 font-semibold">الاسم</th>
+                                <th class="py-3 px-4 font-semibold">رقم الهاتف</th>
+                                <th class="py-3 px-4 font-semibold">العنوان</th>
+                                <th class="py-3 px-4 font-semibold">حالة المراجعة</th>
+                                <th class="py-3 px-4 font-semibold">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="patientsTableBody">
+                            <!-- Patient data will be inserted here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Appointments Tab -->
+        <div id="appointments-tab" class="tab-content">
+            <header class="flex justify-between items-center mb-8">
+                <h2 class="text-4xl font-bold">المواعيد</h2>
+                <button id="addAppointmentBtn" class="bg-[#00d2ff] hover:bg-[#00b3e6] text-white font-bold py-3 px-6 rounded-xl transition-all flex items-center">
+                    <i class="fas fa-plus ml-2"></i>
+                    <span>إضافة موعد جديد</span>
+                </button>
+            </header>
+
+            <!-- Appointment List -->
+            <div class="glass-card p-6">
+                <div class="relative mb-6">
+                    <input type="date" id="appointmentDateFilter" class="w-full p-4 rounded-xl glass-card text-white">
+                </div>
+                
+                <div id="appointmentsContainer">
+                    <!-- Appointments will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settings-tab" class="tab-content">
+            <header class="mb-8">
+                <h2 class="text-4xl font-bold">الإعدادات</h2>
+            </header>
+
+            <div class="glass-card p-6">
+                <!-- Settings Navigation -->
+                <div class="flex flex-wrap gap-2 mb-6 border-b border-white/20 pb-4">
+                    <button data-tab="users" class="settings-tab-btn px-4 py-2 rounded-lg transition-all hover:bg-white/20 active-tab">
+                        <i class="fas fa-users ml-2"></i>
+                        المستخدمين
+                    </button>
+                    <button data-tab="treatments" class="settings-tab-btn px-4 py-2 rounded-lg transition-all hover:bg-white/20">
+                        <i class="fas fa-tooth ml-2"></i>
+                        أنواع المعالجات
+                    </button>
+                    <button data-tab="drugs" class="settings-tab-btn px-4 py-2 rounded-lg transition-all hover:bg-white/20">
+                        <i class="fas fa-pills ml-2"></i>
+                        الأدوية
+                    </button>
+                    <button data-tab="clinic" class="settings-tab-btn px-4 py-2 rounded-lg transition-all hover:bg-white/20">
+                        <i class="fas fa-clinic-medical ml-2"></i>
+                        معلومات العيادة
+                    </button>
+                    <button data-tab="system" class="settings-tab-btn px-4 py-2 rounded-lg transition-all hover:bg-white/20">
+                        <i class="fas fa-cog ml-2"></i>
+                        إعدادات النظام
+                    </button>
+                </div>
+                
+                <!-- Settings Content Area -->
+                <div id="settingsContent">
+                    <!-- Content will be loaded here by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Patient Modals (Add/Edit and Delete) -->
+    <!-- Add Patient Modal -->
+    <div id="addPatientModal" class="modal fixed inset-0 flex items-center justify-center hidden z-50 modal-overlay">
+        <div class="glass-card p-8 w-full max-w-lg mx-4 text-right relative">
+            <h3 class="text-2xl font-bold mb-6" id="modalTitle">إضافة مريض جديد</h3>
+            <button class="close-modal absolute top-4 left-4 text-gray-300 hover:text-white transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <form id="addPatientForm" class="space-y-4">
+                <input type="hidden" id="patientId" name="id">
+                <div>
+                    <label for="firstName" class="block text-sm font-medium mb-1">الاسم الأول</label>
+                    <input type="text" id="firstName" name="first_name" class="w-full p-3 rounded-lg glass-card text-white" required>
+                </div>
+                <div>
+                    <label for="fatherName" class="block text-sm font-medium mb-1">اسم الأب</label>
+                    <input type="text" id="fatherName" name="father_name" class="w-full p-3 rounded-lg glass-card text-white" required>
+                </div>
+                <div>
+                    <label for="lastName" class="block text-sm font-medium mb-1">الكنية</label>
+                    <input type="text" id="lastName" name="last_name" class="w-full p-3 rounded-lg glass-card text-white" required>
+                </div>
+                <div>
+                    <label for="dob" class="block text-sm font-medium mb-1">تاريخ الميلاد</label>
+                    <input type="date" id="dob" name="date_of_birth" class="w-full p-3 rounded-lg glass-card text-white">
+                </div>
+                <div>
+                    <label for="phone" class="block text-sm font-medium mb-1">رقم الموبايل</label>
+                    <input type="text" id="phone" name="phone_number" class="w-full p-3 rounded-lg glass-card text-white" required>
+                </div>
+                <div>
+                    <label for="address" class="block text-sm font-medium mb-1">عنوان السكن</label>
+                    <input type="text" id="address" name="address" class="w-full p-3 rounded-lg glass-card text-white">
+                </div>
+                <div>
+                    <label for="visitStatus" class="block text-sm font-medium mb-1">حالة المراجعة</label>
+                    <select id="visitStatus" name="visit_status" class="w-full p-3 rounded-lg glass-card text-white">
+                        <option value="first_time">أول مرة</option>
+                        <option value="review">مراجعة</option>
+                    </select>
+                </div>
+                <button type="submit" id="submitBtn" class="w-full mt-4 bg-[#00d2ff] hover:bg-[#00b3e6] text-white font-bold py-3 rounded-lg transition-all">
+                    حفظ المريض
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Patient Actions Modal -->
+    <div id="patientActionsModal" class="modal fixed inset-0 flex items-center justify-center hidden z-50 modal-overlay">
+        <div class="glass-card p-8 w-full max-w-lg mx-4 text-right relative">
+            <h3 class="text-2xl font-bold mb-6">إجراءات المريض</h3>
+            <button class="close-modal absolute top-4 left-4 text-gray-300 hover:text-white transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            
+            <div class="mb-6">
+                <h4 class="text-lg font-semibold mb-2">المريض المختار:</h4>
+                <p id="selectedPatientName" class="text-blue-300"></p>
+            </div>
+            
+            <div class="mb-6">
+                <h4 class="text-lg font-semibold mb-2">المبلغ المتبقي:</h4>
+                <p class="text-green-300"><span id="patientBalance">0</span> ل.س</p>
+            </div>
+            
+            <div class="space-y-4">
+                <button onclick="addPayment()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg transition-all">
+                    <i class="fas fa-money-bill-wave ml-2"></i>
+                    إضافة دفعة
+                </button>
+                
+                <button onclick="addAppointment()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-lg transition-all">
+                    <i class="fas fa-calendar-plus ml-2"></i>
+                    إضافة موعد
+                </button>
+                
+                <button onclick="printPrescription()" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 rounded-lg transition-all">
+                    <i class="fas fa-prescription ml-2"></i>
+                    طباعة الوصفة
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript -->
+    <script src="assets/js/receptionist_dashboard.js"></script>
+    <script src="assets/js/settings.js"></script>
+</body>
+</html>
+

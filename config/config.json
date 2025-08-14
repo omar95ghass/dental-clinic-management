@@ -1,0 +1,22 @@
+{
+  "clinic_info": {
+    "clinic_name": "عيادة البسمة لطب الأسنان",
+    "doctor_name": "د. علي الخالد",
+    "doctor_signature_url": "https://example.com/signature.png",
+    "clinic_logo_url": "https://example.com/logo.png"
+  },
+  "general_settings": {
+    "paper_size": "A5",
+    "color_palette": {
+      "primary_color": "#2a52be",
+      "secondary_color": "#f8f9fa",
+      "accent_color": "#00d2ff"
+    },
+    "theme_mode": "light",
+    "page_transitions": "fade-in"
+  },
+  "dental_chart_settings": {
+    "tooth_count": 32,
+    "quadrant_notation": "FDI"
+  }
+}

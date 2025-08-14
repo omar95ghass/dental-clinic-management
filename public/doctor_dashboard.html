@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم الطبيب - عيادة الأسنان</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@200;300;400;500;700;800;900&display=swap');
+        
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        
+        .tooth-button {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .tooth-button:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        
+        .tooth-button.selected {
+            background: #3b82f6;
+            color: white;
+            border-color: #2563eb;
+        }
+        
+        .dental-chart {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 5px;
+            direction: ltr; /* Ensure tooth numbers are read left to right */
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.4);
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+        
+        .modal-content {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 700px;
+            position: relative;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            animation: slide-down 0.3s ease-out;
+        }
+        
+        @keyframes slide-down {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .form-label-title {
+            font-weight: bold;
+            color: #1f2937; /* Gray-800 */
+        }
+        
+        .input-group {
+            border: 1px solid #d1d5db; /* Gray-300 */
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+        }
+        
+        .tab-button.active {
+            border-bottom: 3px solid #2563eb; /* Blue-700 */
+            color: #2563eb;
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        .dropdown-button:focus + .dropdown-menu, .dropdown-menu:hover {
+            display: block;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto p-4 flex justify-between items-center">
+            <h1 class="text-3xl font-bold text-gray-800">
+                <i class="fas fa-tooth text-blue-600 ml-2"></i>
+                عيادة الأسنان
+            </h1>
+            <div class="flex items-center">
+                <div class="ml-4 relative">
+                    <button class="bg-white text-gray-700 font-bold py-2 px-4 rounded-full flex items-center shadow-md dropdown-button">
+                        <i class="fas fa-user-circle text-2xl ml-2"></i>
+                        <span class="hidden md:inline">د. أحمد</span>
+                        <i class="fas fa-chevron-down mr-2"></i>
+                    </button>
+                    <div class="dropdown-menu mt-2 w-48">
+                        <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
+                            <i class="fas fa-cog ml-2"></i>
+                            الإعدادات
+                        </a>
+                        <a href="#" onclick="logout()" class="block px-4 py-2 text-red-600 hover:bg-gray-100">
+                            <i class="fas fa-sign-out-alt ml-2"></i>
+                            تسجيل الخروج
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto p-4 flex-grow">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Patient and Dental Chart Section -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Patient Search & Info -->
+                <div class="bg-white glass-card p-6 shadow-xl">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">
+                        <i class="fas fa-user-alt text-blue-600 ml-2"></i>
+                        بيانات المريض
+                    </h2>
+                    
+                    <!-- Patient Search -->
+                    <div class="mb-6">
+                        <div class="relative">
+                            <input type="text" id="patientSearch" placeholder="ابحث عن مريض بالاسم أو رقم الهاتف..."
+                                class="w-full p-3 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <i class="fas fa-search absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        </div>
+                        <div id="patientSearchResults" class="absolute w-full mt-2 bg-white rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto"></div>
+                    </div>
+
+                    <!-- Patient Info Display -->
+                    <div id="patientInfo" class="hidden">
+                        <!-- Patient info will be displayed here -->
+                    </div>
+
+                    <!-- Patient Actions -->
+                    <div id="patientActions" class="hidden">
+                        <!-- Patient actions will be displayed here -->
+                    </div>
+
+                    <!-- Patient Sessions -->
+                    <div id="patientSessions" class="mt-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">الجلسات السابقة</h3>
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-calendar-times text-4xl mb-4"></i>
+                            <div>اختر مريضاً لعرض جلساته</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dental Chart -->
+                <div class="bg-white glass-card p-6 shadow-xl">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">
+                        <i class="fas fa-tooth text-blue-600 ml-2"></i>
+                        خريطة الأسنان
+                    </h2>
+                    <div id="toothSelector" class="w-full">
+                        <!-- Tooth selector will be initialized here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions Section -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- Quick Actions -->
+                <div class="bg-white glass-card p-6 shadow-xl">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">
+                        <i class="fas fa-bolt text-blue-600 ml-2"></i>
+                        إجراءات سريعة
+                    </h2>
+                    <div class="space-y-4">
+                        <button id="addSessionBtn" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-plus ml-2"></i>
+                            إضافة جلسة جديدة
+                        </button>
+                        <button id="addTreatmentBtn" class="w-full bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition-colors">
+                            <i class="fas fa-toolbox ml-2"></i>
+                            إضافة معالجة
+                        </button>
+                        <button id="addPrescriptionBtn" class="w-full bg-purple-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-purple-700 transition-colors">
+                            <i class="fas fa-pills ml-2"></i>
+                            إضافة وصفة طبية
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Session Summary -->
+                <div class="bg-white glass-card p-6 shadow-xl">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">
+                        <i class="fas fa-chart-bar text-blue-600 ml-2"></i>
+                        ملخص الجلسة
+                    </h2>
+                    <div id="sessionSummary" class="text-center py-8 text-gray-500">
+                        <i class="fas fa-calendar-plus text-4xl mb-4"></i>
+                        <div>لا توجد جلسة نشطة</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modals -->
+
+    <!-- Notification Modal -->
+    <div id="notificationModal" class="modal">
+        <div class="modal-content text-center">
+            <i id="notificationIcon" class="text-5xl mb-4"></i>
+            <h3 id="notificationTitle" class="text-xl font-bold mb-2 text-gray-800"></h3>
+            <p id="notificationMessage" class="text-gray-600 mb-6"></p>
+            <button onclick="closeNotificationModal()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-full hover:bg-blue-700 transition duration-300">
+                إغلاق
+            </button>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content text-center">
+            <i class="fas fa-question-circle text-blue-500 text-5xl mb-4"></i>
+            <h3 id="confirmTitle" class="text-xl font-bold mb-2 text-gray-800"></h3>
+            <p id="confirmMessage" class="text-gray-600 mb-6"></p>
+            <div class="flex justify-center gap-4">
+                <button id="confirmYesBtn" class="bg-green-600 text-white font-bold py-2 px-6 rounded-full hover:bg-green-700 transition duration-300">
+                    نعم
+                </button>
+                <button id="confirmNoBtn" class="bg-gray-400 text-white font-bold py-2 px-6 rounded-full hover:bg-gray-500 transition duration-300">
+                    لا
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Treatment Details Modal -->
+    <div id="treatmentModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-syringe text-blue-600 ml-2"></i>
+                    إضافة معالجة
+                </h2>
+                <button onclick="closeTreatmentModal()" class="text-gray-500 hover:text-gray-700 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="treatmentForm">
+                <!-- Form content will be dynamically generated -->
+            </form>
+            <div class="mt-6 border-t pt-4 text-left">
+                <button onclick="saveTreatment()" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-full hover:bg-blue-700 transition duration-300">
+                    حفظ المعالجة
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-history text-blue-600 ml-2"></i>
+                    سجل المعالجات السابقة
+                </h2>
+                <button onclick="closeHistoryModal()" class="text-gray-500 hover:text-gray-700 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="historyContent"></div>
+        </div>
+    </div>
+
+    <!-- Session Details Modal -->
+    <div id="sessionDetailsModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-info-circle text-blue-600 ml-2"></i>
+                    تفاصيل الجلسة
+                </h2>
+                <button onclick="closeSessionDetailsModal()" class="text-gray-500 hover:text-gray-700 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="sessionDetailsContent"></div>
+        </div>
+    </div>
+    
+    <!-- Financial Modal -->
+    <div id="financialModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-file-invoice-dollar text-blue-600 ml-2"></i>
+                    الملف المالي للمريض
+                </h2>
+                <button onclick="closeFinancialModal()" class="text-gray-500 hover:text-gray-700 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="financialContent">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <span class="text-xl font-bold text-gray-800">الرصيد الحالي:</span>
+                    <span id="patientBalance" class="text-xl font-bold text-red-600">0 ل.س</span>
+                </div>
+                <div class="space-y-4 mt-6">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-700 mb-2">الدفعات</h3>
+                        <div id="patientPayments" class="bg-gray-50 p-4 rounded-lg overflow-y-auto max-h-60">
+                            <p class="text-gray-500 text-center">لا توجد دفعات مسجلة.</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-700 mb-2">الفواتير</h3>
+                        <div id="patientInvoices" class="bg-gray-50 p-4 rounded-lg overflow-y-auto max-h-60">
+                            <p class="text-gray-500 text-center">لا توجد فواتير مسجلة.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Session Modal -->
+    <div id="addSessionModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-plus text-blue-600 ml-2"></i>
+                    إضافة جلسة جديدة
+                </h2>
+                <button class="modal-close text-gray-500 hover:text-gray-700 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="addSessionForm">
+                <div class="mb-4">
+                    <label for="sessionNotes" class="block text-sm font-medium text-gray-700 mb-2">ملاحظات الجلسة</label>
+                    <textarea id="sessionNotes" name="sessionNotes" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="أدخل ملاحظات الجلسة..."></textarea>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" class="modal-close bg-gray-400 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-500 transition-colors">
+                        إلغاء
+                    </button>
+                    <button type="button" onclick="doctorDashboard.createSession()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors">
+                        إنشاء الجلسة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Treatment Modal -->
+    <div id="addTreatmentModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-toolbox text-blue-600 ml-2"></i>
+                    إضافة معالجة
+                </h2>
+                <button class="modal-close text-gray-500 hover:text-gray-700 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="addTreatmentForm">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">اختيار الأسنان</label>
+                    <div id="toothSelectorModal" class="mb-4">
+                        <!-- Tooth selector will be initialized here -->
+                    </div>
+                    <div id="selectedTeethDisplay" class="text-sm text-gray-600 mb-4">لا توجد أسنان مختارة</div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="treatmentType" class="block text-sm font-medium text-gray-700 mb-2">نوع المعالجة</label>
+                        <select id="treatmentType" name="treatmentType" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">اختر نوع المعالجة</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="treatmentCost" class="block text-sm font-medium text-gray-700 mb-2">التكلفة</label>
+                        <input type="number" id="treatmentCost" name="treatmentCost" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0.00">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="additionalCost" class="block text-sm font-medium text-gray-700 mb-2">تكلفة إضافية</label>
+                        <input type="number" id="additionalCost" name="additionalCost" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label for="treatmentDiscount" class="block text-sm font-medium text-gray-700 mb-2">خصم</label>
+                        <input type="number" id="treatmentDiscount" name="treatmentDiscount" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0.00">
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label for="treatmentNotes" class="block text-sm font-medium text-gray-700 mb-2">ملاحظات</label>
+                    <textarea id="treatmentNotes" name="treatmentNotes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="أدخل ملاحظات المعالجة..."></textarea>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" class="modal-close bg-gray-400 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-500 transition-colors">
+                        إلغاء
+                    </button>
+                    <button type="button" onclick="doctorDashboard.addTreatment()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors">
+                        إضافة المعالجة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Prescription Modal -->
+    <div id="addPrescriptionModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <i class="fas fa-pills text-blue-600 ml-2"></i>
+                    إضافة وصفة طبية
+                </h2>
+                <button class="modal-close text-gray-500 hover:text-gray-700 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="addPrescriptionForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="prescriptionDrug" class="block text-sm font-medium text-gray-700 mb-2">الدواء</label>
+                        <select id="prescriptionDrug" name="prescriptionDrug" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">اختر الدواء</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="prescriptionDosage" class="block text-sm font-medium text-gray-700 mb-2">الجرعة</label>
+                        <select id="prescriptionDosage" name="prescriptionDosage" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">اختر الجرعة</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" class="modal-close bg-gray-400 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-500 transition-colors">
+                        إلغاء
+                    </button>
+                    <button type="button" onclick="doctorDashboard.addPrescription()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors">
+                        إضافة الوصفة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="assets/js/tooth_selector.js"></script>
+    <script src="assets/js/doctor_dashboard.js"></script>
+    <script>
+        // Initialize the dashboard
+        let doctorDashboard;
+        document.addEventListener('DOMContentLoaded', () => {
+            doctorDashboard = new DoctorDashboard();
+        });
+    </script>
+</body>
+</html>

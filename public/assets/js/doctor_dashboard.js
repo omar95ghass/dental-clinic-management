@@ -344,10 +344,14 @@ class DoctorDashboard {
         const modal = document.getElementById('addTreatmentModal');
         if (modal) {
             modal.style.display = 'flex';
-            this.setupModalToothSelector();
             this.loadTreatmentTypes();
             const selectedTeethDisplay = document.getElementById('selectedTeethDisplay');
-            if (selectedTeethDisplay) selectedTeethDisplay.textContent = 'لا توجد أسنان مختارة';
+            const container = document.getElementById('toothSelectorModal');
+            if (container) container.style.display = 'none';
+            const selectedFromMain = this.getSelectedTeethFromMain();
+            if (selectedTeethDisplay) {
+                selectedTeethDisplay.textContent = selectedFromMain.length ? selectedFromMain.join(', ') : 'لا توجد أسنان مختارة';
+            }
         }
     }
 
@@ -410,6 +414,14 @@ class DoctorDashboard {
         };
     }
 
+    // Read selected teeth from the main dashboard selector
+    getSelectedTeethFromMain() {
+        if (this.toothSelector && typeof this.toothSelector.getSelectedTeeth === 'function') {
+            return this.toothSelector.getSelectedTeeth().map(t => parseInt(t, 10)).filter(Boolean);
+        }
+        return [];
+    }
+
     // Add treatment(s) to current session
     async addTreatment() {
         if (!this.currentSession) {
@@ -417,12 +429,7 @@ class DoctorDashboard {
             return;
         }
 
-        if (!this.modalToothSelector) {
-            this.showNotification('يرجى اختيار الأسنان للمعالجة', 'error');
-            return;
-        }
-
-        const selectedTeeth = this.modalToothSelector.getSelectedTeeth().map(t => parseInt(t, 10)).filter(Boolean);
+        const selectedTeeth = this.getSelectedTeethFromMain();
         if (selectedTeeth.length === 0) {
             this.showNotification('لم يتم اختيار أي سن', 'error');
             return;

@@ -20,6 +20,9 @@ $pdo = $database->connect();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
+// Ensure required tables exist
+ensureFinancialTables($pdo);
+
 // Main request handler
 try {
     switch ($method) {
@@ -43,6 +46,39 @@ try {
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
+}
+
+// Create tables if they do not exist
+function ensureFinancialTables($pdo) {
+    try {
+        $pdo->exec(
+            "CREATE TABLE IF NOT EXISTS payments (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                patient_id INT NOT NULL,
+                amount DECIMAL(12,2) NOT NULL,
+                payment_method VARCHAR(50) NULL,
+                notes TEXT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_payments_patient (patient_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+
+        $pdo->exec(
+            "CREATE TABLE IF NOT EXISTS invoices (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                patient_id INT NOT NULL,
+                total_amount DECIMAL(12,2) NOT NULL,
+                notes TEXT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_invoices_patient (patient_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+    } catch (PDOException $e) {
+        // If creation fails, surface error
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to ensure financial tables: ' . $e->getMessage()]);
+        exit;
+    }
 }
 
 // Handle GET requests
@@ -129,12 +165,17 @@ function getPatientBalance($pdo, $patient_id) {
         // Calculate total payments made by the patient
         $stmt_payments = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE patient_id = ?");
         $stmt_payments->execute([$patient_id]);
-        $total_payments = $stmt_payments->fetchColumn();
+        $total_payments = (float)$stmt_payments->fetchColumn();
 
-        // Calculate total amount from all treatments
-        $stmt_treatments = $pdo->prepare("SELECT COALESCE(SUM(cost - (cost * discount / 100)), 0) FROM treatments WHERE patient_id = ?");
+        // Calculate total amount from all treatments for this patient (join sessions)
+        $stmt_treatments = $pdo->prepare(
+            "SELECT COALESCE(SUM((t.cost + COALESCE(t.additional_cost,0)) - ((t.cost + COALESCE(t.additional_cost,0)) * (COALESCE(t.discount,0)/100))), 0)
+             FROM treatments t
+             JOIN sessions s ON t.session_id = s.id
+             WHERE s.patient_id = ?"
+        );
         $stmt_treatments->execute([$patient_id]);
-        $total_cost = $stmt_treatments->fetchColumn();
+        $total_cost = (float)$stmt_treatments->fetchColumn();
 
         $balance = $total_cost - $total_payments;
         
@@ -185,10 +226,11 @@ function addPayment($pdo, $input) {
     $patient_id = $input['patient_id'];
     $amount = $input['amount'];
     $notes = $input['notes'] ?? null;
+    $payment_method = $input['payment_method'] ?? null;
     
     try {
-        $stmt = $pdo->prepare("INSERT INTO payments (patient_id, amount, notes) VALUES (?, ?, ?)");
-        $stmt->execute([$patient_id, $amount, $notes]);
+        $stmt = $pdo->prepare("INSERT INTO payments (patient_id, amount, payment_method, notes) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$patient_id, $amount, $payment_method, $notes]);
         
         echo json_encode([
             'success' => true,
@@ -196,6 +238,36 @@ function addPayment($pdo, $input) {
             'payment_id' => $pdo->lastInsertId()
         ]);
         
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+    }
+}
+
+// Generate an invoice
+function generateInvoice($pdo, $input) {
+    $required_fields = ['patient_id', 'total_amount'];
+    foreach ($required_fields as $field) {
+        if (!isset($input[$field])) {
+            http_response_code(400);
+            echo json_encode(['error' => "Required field '$field' is missing"]);
+            return;
+        }
+    }
+
+    $patient_id = $input['patient_id'];
+    $total_amount = $input['total_amount'];
+    $notes = $input['notes'] ?? null;
+
+    try {
+        $stmt = $pdo->prepare("INSERT INTO invoices (patient_id, total_amount, notes) VALUES (?, ?, ?)");
+        $stmt->execute([$patient_id, $total_amount, $notes]);
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Invoice generated successfully',
+            'invoice_id' => $pdo->lastInsertId()
+        ]);
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
@@ -222,6 +294,10 @@ function updatePayment($pdo, $input) {
     if (isset($input['notes'])) {
         $fields[] = "notes = ?";
         $values[] = $input['notes'];
+    }
+    if (isset($input['payment_method'])) {
+        $fields[] = "payment_method = ?";
+        $values[] = $input['payment_method'];
     }
     
     if (empty($fields)) {

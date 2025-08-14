@@ -78,6 +78,9 @@ function setupTabSwitching() {
                 case 'appointments-tab':
                     loadAppointments();
                     break;
+                case 'financial-tab':
+                    initFinancialTab();
+                    break;
                 case 'settings-tab':
                     loadSettings();
                     break;
@@ -657,5 +660,104 @@ function printPrescription() {
     }
     // Implementation will be added in prescription printing phase
     showNotification('ميزة طباعة الوصفات ستكون متاحة قريباً', 'info');
+}
+
+// Financial Tab Logic
+async function initFinancialTab() {
+    try {
+        // Populate patients in selector
+        const patientsRes = await fetch('../api/patients.php');
+        const allPatients = await patientsRes.json();
+        const select = document.getElementById('financialPatientSelect');
+        if (select) {
+            select.innerHTML = '<option value="">اختر المريض</option>';
+            (Array.isArray(allPatients) ? allPatients : []).forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = `${p.first_name} ${p.father_name} ${p.last_name} — ${p.phone_number}`;
+                select.appendChild(opt);
+            });
+            select.onchange = () => {
+                const id = parseInt(select.value || '');
+                if (id) loadFinancialOverview(id);
+            };
+        }
+
+        // Bind action buttons
+        const addPaymentBtn = document.getElementById('financialAddPaymentBtn');
+        if (addPaymentBtn) addPaymentBtn.onclick = () => openFinancialAddPaymentModal();
+        const genInvoiceBtn = document.getElementById('financialGenerateInvoiceBtn');
+        if (genInvoiceBtn) genInvoiceBtn.onclick = () => generateInvoiceAction();
+    } catch (e) {
+        console.error('Error initializing financial tab:', e);
+    }
+}
+
+async function loadFinancialOverview(patientId) {
+    try {
+        const [balRes, paysRes, invRes] = await Promise.all([
+            fetch(`../api/financial.php?action=get_patient_balance&patient_id=${patientId}`),
+            fetch(`../api/financial.php?action=get_patient_payments&patient_id=${patientId}`),
+            fetch(`../api/financial.php?action=get_patient_invoices&patient_id=${patientId}`)
+        ]);
+        const bal = await balRes.json();
+        const payments = await paysRes.json();
+        const invoices = await invRes.json();
+
+        const balEl = document.getElementById('financialBalance');
+        if (balEl) balEl.textContent = `${bal && bal.balance ? bal.balance : 0} ل.س`;
+
+        const paysEl = document.getElementById('financialPaymentsList');
+        if (paysEl) {
+            paysEl.innerHTML = Array.isArray(payments) && payments.length ? payments.map(p => `
+                <div class=\"flex justify-between border-b border-white/10 py-2\">
+                    <span>${new Date(p.created_at).toLocaleDateString('ar-SA')}</span>
+                    <span>${p.amount} ل.س</span>
+                </div>
+            `).join('') : 'لا توجد دفعات';
+        }
+
+        const invEl = document.getElementById('financialInvoicesList');
+        if (invEl) {
+            invEl.innerHTML = Array.isArray(invoices) && invoices.length ? invoices.map(i => `
+                <div class=\"flex justify-between border-b border-white/10 py-2\">
+                    <span>${new Date(i.created_at).toLocaleDateString('ar-SA')}</span>
+                    <span>${i.total_amount || 0} ل.س</span>
+                </div>
+            `).join('') : 'لا توجد فواتير';
+        }
+    } catch (e) {
+        console.error('Error loading financial overview:', e);
+    }
+}
+
+function openFinancialAddPaymentModal() {
+    const select = document.getElementById('financialPatientSelect');
+    const pid = parseInt(select && select.value || '');
+    if (!pid) { showNotification('يرجى اختيار مريض أولاً', 'warning'); return; }
+
+    // Reuse existing payment modal with currentPatient context
+    currentPatient = { id: pid, first_name: '', father_name: '', last_name: '' };
+    showPaymentModal();
+}
+
+async function generateInvoiceAction() {
+    const select = document.getElementById('financialPatientSelect');
+    const pid = parseInt(select && select.value || '');
+    if (!pid) { showNotification('يرجى اختيار مريض أولاً', 'warning'); return; }
+    const amount = prompt('قيمة الفاتورة:', '0');
+    if (amount === null) return;
+    try {
+        const resp = await fetch('../api/financial.php?action=generate_invoice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patient_id: pid, total_amount: Number(amount) || 0 })
+        });
+        if (!resp.ok) throw new Error();
+        showNotification('تم إنشاء الفاتورة بنجاح', 'success');
+        loadFinancialOverview(pid);
+    } catch (e) {
+        showNotification('فشل إنشاء الفاتورة', 'error');
+    }
 }
 

@@ -69,6 +69,12 @@
                     </a>
                 </li>
                 <li class="mb-4">
+                    <a href="#" data-tab="financial-tab" class="tab-button sidebar-item flex items-center p-4 rounded-xl font-medium transition-all">
+                        <i class="fas fa-file-invoice-dollar ml-3"></i>
+                        <span>الملف المالي</span>
+                    </a>
+                </li>
+                <li class="mb-4">
                     <a href="#" data-tab="settings-tab" class="tab-button sidebar-item flex items-center p-4 rounded-xl font-medium transition-all">
                         <i class="fas fa-cogs ml-3"></i>
                         <span>الإعدادات</span>
@@ -141,6 +147,46 @@
                 
                 <div id="appointmentsContainer">
                     <!-- Appointments will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Tab -->
+        <div id="financial-tab" class="tab-content">
+            <header class="flex justify-between items-center mb-8">
+                <h2 class="text-4xl font-bold">الملف المالي</h2>
+            </header>
+            <div class="glass-card p-6 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">اختر المريض</label>
+                        <select id="financialPatientSelect" class="w-full p-3 rounded-lg glass-card text-white"></select>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-sm text-gray-200 mb-1">الرصيد الحالي</div>
+                        <div id="financialBalance" class="text-2xl font-bold text-yellow-300">0 ل.س</div>
+                    </div>
+                    <div class="flex gap-3 justify-end">
+                        <button id="financialAddPaymentBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition-all">
+                            <i class="fas fa-money-bill-wave ml-2"></i>
+                            إضافة دفعة
+                        </button>
+                        <button id="financialGenerateInvoiceBtn" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg transition-all">
+                            <i class="fas fa-file-invoice ml-2"></i>
+                            إنشاء فاتورة
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-xl font-semibold mb-3">الدفعات</h3>
+                        <div id="financialPaymentsList" class="bg-white/10 rounded-lg p-4 min-h-[120px]">لا توجد دفعات</div>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold mb-3">الفواتير</h3>
+                        <div id="financialInvoicesList" class="bg-white/10 rounded-lg p-4 min-h-[120px]">لا توجد فواتير</div>
+                    </div>
                 </div>
             </div>
         </div>

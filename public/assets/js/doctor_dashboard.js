@@ -12,6 +12,12 @@ class DoctorDashboard {
     init() {
         this.bindEvents();
         this.setupToothSelector();
+        
+        // Expose modal close helpers for HTML inline handlers
+        window.closeHistoryModal = () => this.closeModal('historyModal');
+        window.closeSessionDetailsModal = () => this.closeModal('sessionDetailsModal');
+        window.closeFinancialModal = () => this.closeModal('financialModal');
+        window.closeTreatmentModal = () => this.closeModal('treatmentModal');
     }
 
     bindEvents() {
@@ -222,6 +228,7 @@ class DoctorDashboard {
         `;
 
         sessionsContainer.innerHTML = html;
+        this.bindSessionListEvents();
     }
 
     showPatientActions() {
@@ -233,17 +240,17 @@ class DoctorDashboard {
                         <i class="fas fa-plus ml-2"></i>
                         إضافة جلسة جديدة
                     </button>
-                    <button class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
-                        <i class="fas fa-file-medical ml-2"></i>
-                        السجل الطبي
+                    <button id="openHistoryBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                        <i class="fas fa-history ml-2"></i>
+                        سجل المعالجات
                     </button>
                     <button class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
                         <i class="fas fa-paperclip ml-2"></i>
                         الملفات المرفقة
                     </button>
-                    <button class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
-                        <i class="fas fa-print ml-2"></i>
-                        طباعة الوصفات
+                    <button id="openFinancialBtn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                        <i class="fas fa-file-invoice-dollar ml-2"></i>
+                        الملف المالي
                     </button>
                 </div>
             `;
@@ -253,6 +260,14 @@ class DoctorDashboard {
             const addSessionBtn = actionsContainer.querySelector('#addSessionBtn');
             if (addSessionBtn) {
                 addSessionBtn.addEventListener('click', () => this.showAddSessionModal());
+            }
+            const historyBtn = actionsContainer.querySelector('#openHistoryBtn');
+            if (historyBtn) {
+                historyBtn.addEventListener('click', () => this.openHistoryModal());
+            }
+            const financialBtn = actionsContainer.querySelector('#openFinancialBtn');
+            if (financialBtn) {
+                financialBtn.addEventListener('click', () => this.openFinancialModal());
             }
         }
     }
@@ -559,6 +574,224 @@ class DoctorDashboard {
         } catch (error) {
             console.error('Error adding prescription:', error);
             this.showNotification('خطأ في إضافة الوصفة', 'error');
+        }
+    }
+
+    bindSessionListEvents() {
+        const container = document.getElementById('patientSessions');
+        if (!container) return;
+        container.querySelectorAll('.session-item').forEach(item => {
+            const sessionId = item.getAttribute('data-session-id');
+            const viewBtn = item.querySelector('.btn-view-session');
+            const editBtn = item.querySelector('.btn-edit-session');
+            if (viewBtn) viewBtn.addEventListener('click', (e) => { e.stopPropagation(); this.openSessionDetails(sessionId); });
+            if (editBtn) editBtn.addEventListener('click', (e) => { e.stopPropagation(); this.editSession(sessionId); });
+        });
+    }
+
+    async openSessionDetails(sessionId) {
+        try {
+            const [detailsRes, treatmentsRes, prescriptionsRes] = await Promise.all([
+                fetch(`../api/sessions.php?action=get_session_details&session_id=${sessionId}`),
+                fetch(`../api/sessions.php?action=get_session_treatments&session_id=${sessionId}`),
+                fetch(`../api/sessions.php?action=get_session_prescriptions&session_id=${sessionId}`)
+            ]);
+            const details = await detailsRes.json();
+            const treatments = await treatmentsRes.json();
+            const prescriptions = await prescriptionsRes.json();
+
+            const container = document.getElementById('sessionDetailsContent');
+            if (container) {
+                container.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="bg-gray-50 p-3 rounded">
+                            <div class="font-semibold text-gray-800 mb-1">المريض:</div>
+                            <div class="text-gray-700">${details.patient_name} - ${details.phone_number || ''}</div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-gray-50 p-3 rounded">
+                                <div class="font-semibold text-gray-800 mb-2">المعالجات</div>
+                                ${treatments.length ? treatments.map(t => `
+                                    <div class="flex items-center justify-between py-2 border-b border-gray-200 text-sm">
+                                        <div>
+                                            <div class="font-medium text-gray-900">${t.treatment_type_name}</div>
+                                            <div class="text-gray-600">سن: ${t.tooth_number} — تكلفة: ${t.cost} — خصم: ${t.discount || 0}%</div>
+                                            ${t.notes ? `<div class="text-gray-500">ملاحظات: ${t.notes}</div>` : ''}
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <button class="btn-edit-treatment text-green-600 hover:text-green-800" data-id="${t.id}"><i class="fas fa-edit"></i></button>
+                                            <button class="btn-delete-treatment text-red-600 hover:text-red-800" data-id="${t.id}"><i class="fas fa-trash"></i></button>
+                                        </div>
+                                    </div>
+                                `).join('') : '<div class="text-gray-500">لا توجد معالجات</div>'}
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded">
+                                <div class="font-semibold text-gray-800 mb-2">الوصفات</div>
+                                ${prescriptions.length ? prescriptions.map(p => `
+                                    <div class="py-2 border-b border-gray-200 text-sm">
+                                        <div class="font-medium text-gray-900">${p.drug_name}</div>
+                                        <div class="text-gray-600">الجرعة: ${p.dosage}</div>
+                                    </div>
+                                `).join('') : '<div class="text-gray-500">لا توجد وصفات</div>'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Bind treatment actions
+            container.querySelectorAll('.btn-delete-treatment').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.getAttribute('data-id');
+                    if (!confirm('هل أنت متأكد من حذف هذه المعالجة؟')) return;
+                    try {
+                        const resp = await fetch(`../api/sessions.php?action=delete_treatment&treatment_id=${id}`, { method: 'DELETE' });
+                        if (!resp.ok) throw new Error();
+                        this.showNotification('تم حذف المعالجة', 'success');
+                        this.openSessionDetails(sessionId);
+                    } catch (_) {
+                        this.showNotification('فشل حذف المعالجة', 'error');
+                    }
+                });
+            });
+            container.querySelectorAll('.btn-edit-treatment').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.getAttribute('data-id');
+                    const newCost = prompt('تعديل التكلفة:');
+                    if (newCost === null) return;
+                    const newAdd = prompt('تعديل التكلفة الإضافية:', '0');
+                    if (newAdd === null) return;
+                    const newDisc = prompt('تعديل الخصم (%):', '0');
+                    if (newDisc === null) return;
+                    const newNotes = prompt('تعديل الملاحظات:') ?? '';
+                    try {
+                        const resp = await fetch('../api/sessions.php?action=update_treatment', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                treatment_id: parseInt(id, 10),
+                                cost: Number(newCost) || 0,
+                                additional_cost: Number(newAdd) || 0,
+                                discount: Number(newDisc) || 0,
+                                notes: newNotes
+                            })
+                        });
+                        if (!resp.ok) throw new Error();
+                        this.showNotification('تم تحديث المعالجة', 'success');
+                        this.openSessionDetails(sessionId);
+                    } catch (_) {
+                        this.showNotification('فشل تحديث المعالجة', 'error');
+                    }
+                });
+            });
+
+            const modal = document.getElementById('sessionDetailsModal');
+            if (modal) modal.style.display = 'flex';
+        } catch (error) {
+            console.error('Error loading session details:', error);
+            this.showNotification('خطأ في تحميل تفاصيل الجلسة', 'error');
+        }
+    }
+
+    async editSession(sessionId) {
+        try {
+            const res = await fetch(`../api/sessions.php?action=get_session_details&session_id=${sessionId}`);
+            const details = await res.json();
+            const newNotes = prompt('تعديل ملاحظات الجلسة:', details.session_notes || '');
+            if (newNotes === null) return;
+            const resp = await fetch('../api/sessions.php?action=update_session', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: parseInt(sessionId, 10), session_notes: newNotes })
+            });
+            if (!resp.ok) throw new Error();
+            this.showNotification('تم تحديث الجلسة', 'success');
+            if (this.currentPatient) await this.loadPatientSessions(this.currentPatient.id);
+        } catch (error) {
+            console.error('Error updating session:', error);
+            this.showNotification('فشل تحديث الجلسة', 'error');
+        }
+    }
+
+    openHistoryModal() {
+        if (!this.currentPatient) {
+            this.showNotification('يرجى اختيار مريض أولاً', 'error');
+            return;
+        }
+        const modal = document.getElementById('historyModal');
+        const content = document.getElementById('historyContent');
+        if (content) content.innerHTML = '<div class="text-center text-gray-500">جاري التحميل...</div>';
+        if (modal) modal.style.display = 'flex';
+        fetch(`../api/sessions.php?action=get_patient_sessions&patient_id=${this.currentPatient.id}`)
+            .then(r => r.json())
+            .then(sessions => {
+                if (!content) return;
+                if (!Array.isArray(sessions) || sessions.length === 0) {
+                    content.innerHTML = '<div class="text-gray-500">لا يوجد سجل</div>';
+                    return;
+                }
+                content.innerHTML = sessions.map(s => `
+                    <div class="p-3 border-b">
+                        <div class="font-semibold text-gray-800">${new Date(s.session_date).toLocaleDateString('ar-SA')}</div>
+                        ${s.session_notes ? `<div class=\"text-gray-600\">${s.session_notes}</div>` : ''}
+                        <button class="mt-2 text-blue-600 hover:text-blue-800 text-sm" onclick="doctorDashboard.openSessionDetails(${s.id})">
+                            <i class="fas fa-eye ml-1"></i> عرض التفاصيل
+                        </button>
+                    </div>
+                `).join('');
+            })
+            .catch(err => {
+                console.error(err);
+                if (content) content.innerHTML = '<div class="text-red-500">خطأ في تحميل السجل</div>';
+            });
+    }
+
+    openFinancialModal() {
+        if (!this.currentPatient) {
+            this.showNotification('يرجى اختيار مريض أولاً', 'error');
+            return;
+        }
+        const modal = document.getElementById('financialModal');
+        if (modal) modal.style.display = 'flex';
+        this.loadFinancialData(this.currentPatient.id);
+    }
+
+    async loadFinancialData(patientId) {
+        try {
+            const [balRes, paysRes, invRes] = await Promise.all([
+                fetch(`../api/financial.php?action=get_patient_balance&patient_id=${patientId}`),
+                fetch(`../api/financial.php?action=get_patient_payments&patient_id=${patientId}`),
+                fetch(`../api/financial.php?action=get_patient_invoices&patient_id=${patientId}`)
+            ]);
+            const balance = await balRes.json();
+            const payments = await paysRes.json();
+            const invoices = await invRes.json();
+
+            const balanceEl = document.getElementById('patientBalance');
+            if (balanceEl) balanceEl.textContent = `${(balance && balance.balance) ? balance.balance : 0} ل.س`;
+
+            const paysEl = document.getElementById('patientPayments');
+            if (paysEl) {
+                paysEl.innerHTML = Array.isArray(payments) && payments.length ? payments.map(p => `
+                    <div class="flex justify-between border-b py-2">
+                        <span>${new Date(p.created_at).toLocaleDateString('ar-SA')}</span>
+                        <span>${p.amount} ل.س</span>
+                    </div>
+                `).join('') : '<p class="text-gray-500 text-center">لا توجد دفعات مسجلة.</p>';
+            }
+
+            const invEl = document.getElementById('patientInvoices');
+            if (invEl) {
+                invEl.innerHTML = Array.isArray(invoices) && invoices.length ? invoices.map(i => `
+                    <div class="flex justify-between border-b py-2">
+                        <span>${new Date(i.created_at).toLocaleDateString('ar-SA')}</span>
+                        <span>${i.total_amount || 0} ل.س</span>
+                    </div>
+                `).join('') : '<p class="text-gray-500 text-center">لا توجد فواتير مسجلة.</p>';
+            }
+        } catch (error) {
+            console.error('Error loading financial data:', error);
+            this.showNotification('خطأ في تحميل الملف المالي', 'error');
         }
     }
 }

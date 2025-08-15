@@ -10,22 +10,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
   exit(0);
 }
 
-// استيراد ملف الاتصال
 require_once 'db_connect.php';
 
-
 $database = new Database();
-
-
 $pdo = $database->connect();
-
 
 if (!$pdo) {
     http_response_code(500);
     echo json_encode(['error' => 'Failed to connect to the database.']);
     exit();
 }
-
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
@@ -66,10 +60,10 @@ function handleGetRequest($pdo, $action) {
       getDrugs($pdo);
       break;
     case 'get_clinic_info':
-      getClinicInfo($pdo);
+      getClinicInfoFromConfig();
       break;
     case 'get_system_settings':
-      getSystemSettings($pdo);
+      getSystemSettingsFromConfig();
       break;
     default:
       http_response_code(400);
@@ -92,10 +86,10 @@ function handlePostRequest($pdo, $action) {
       addDrug($pdo, $input);
       break;
     case 'update_clinic_info':
-      updateClinicInfo($pdo, $input);
+      updateClinicInfoInConfig($input);
       break;
     case 'update_system_settings':
-      updateSystemSettings($pdo, $input);
+      updateSystemSettingsInConfig($input);
       break;
     default:
       http_response_code(400);
@@ -142,7 +136,102 @@ function handleDeleteRequest($pdo, $action) {
   }
 }
 
-// User management functions
+// ===== Helpers for config.json settings =====
+function getConfigPath() {
+  return __DIR__ . '/../config/config.json';
+}
+
+function readConfigJson() {
+  $path = getConfigPath();
+  if (!file_exists($path)) {
+    return [
+      'clinic_info' => [],
+      'general_settings' => []
+    ];
+  }
+  $raw = file_get_contents($path);
+  $data = json_decode($raw, true);
+  return is_array($data) ? $data : [];
+}
+
+function writeConfigJson($data) {
+  $path = getConfigPath();
+  $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+  $tmp = $path . '.tmp';
+  file_put_contents($tmp, $json, LOCK_EX);
+  rename($tmp, $path);
+}
+
+function getClinicInfoFromConfig() {
+  $cfg = readConfigJson();
+  $info = $cfg['clinic_info'] ?? [];
+
+  // Normalize keys to match frontend form expectations
+  $result = [
+    'name' => $info['clinic_name'] ?? '',
+    'address' => $info['address'] ?? '',
+    'phone' => $info['phone'] ?? '',
+    'email' => $info['email'] ?? '',
+    'doctor_name' => $info['doctor_name'] ?? '',
+    'specialization' => $info['specialization'] ?? ''
+  ];
+  echo json_encode($result);
+}
+
+function updateClinicInfoInConfig($input) {
+  $cfg = readConfigJson();
+  $info = $cfg['clinic_info'] ?? [];
+
+  $info['clinic_name'] = $input['name'] ?? ($info['clinic_name'] ?? '');
+  $info['address'] = $input['address'] ?? ($info['address'] ?? '');
+  $info['phone'] = $input['phone'] ?? ($info['phone'] ?? '');
+  $info['email'] = $input['email'] ?? ($info['email'] ?? '');
+  $info['doctor_name'] = $input['doctor_name'] ?? ($info['doctor_name'] ?? '');
+  $info['specialization'] = $input['specialization'] ?? ($info['specialization'] ?? '');
+
+  $cfg['clinic_info'] = $info;
+  writeConfigJson($cfg);
+
+  echo json_encode(['success' => true, 'message' => 'تم تحديث معلومات العيادة بنجاح']);
+}
+
+function getSystemSettingsFromConfig() {
+  $cfg = readConfigJson();
+  $settings = $cfg['general_settings'] ?? [];
+
+  // Provide defaults expected by UI
+  $defaults = [
+    'appointment_duration' => 30,
+    'working_hours_start' => '09:00',
+    'working_hours_end' => '17:00',
+    'currency' => 'SYP',
+    'session_timeout' => 120,
+    'backup_frequency' => 'weekly'
+  ];
+
+  $result = array_merge($defaults, $settings);
+  echo json_encode($result);
+}
+
+function updateSystemSettingsInConfig($input) {
+  $cfg = readConfigJson();
+  $settings = $cfg['general_settings'] ?? [];
+
+  // Whitelist keys from UI
+  $allowed = ['appointment_duration','working_hours_start','working_hours_end','currency','session_timeout','backup_frequency'];
+  foreach ($allowed as $key) {
+    if (array_key_exists($key, $input)) {
+      $settings[$key] = $input[$key];
+    }
+  }
+
+  $cfg['general_settings'] = $settings;
+  writeConfigJson($cfg);
+
+  echo json_encode(['success' => true, 'message' => 'تم تحديث إعدادات النظام بنجاح']);
+}
+
+// ===== User management functions (DB-based) =====
 function getUsers($pdo) {
   try {
     $stmt = $pdo->prepare("SELECT id, username, role, created_at FROM users ORDER BY created_at DESC");
@@ -313,7 +402,7 @@ function deleteUser($pdo) {
   }
 }
 
-// Treatment types management
+// Treatment types management (DB-based)
 function getTreatmentTypes($pdo) {
   try {
     $stmt = $pdo->prepare("SELECT * FROM treatment_types ORDER BY name");
@@ -420,7 +509,6 @@ function deleteTreatmentType($pdo) {
   
   try {
     // Check if treatment type is being used
-    // ملاحظة: تم تغيير اسم الجدول من session_treatments إلى treatments بناءً على المخطط الذي قدمته مسبقًا.
     $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM treatments WHERE treatment_type_id = ?");
     $stmt->execute([$type_id]);
     $usage = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
@@ -450,7 +538,7 @@ function deleteTreatmentType($pdo) {
   }
 }
 
-// Drugs management
+// Drugs management (DB-based)
 function getDrugs($pdo) {
   try {
     $stmt = $pdo->prepare("SELECT * FROM drugs ORDER BY name");
@@ -559,7 +647,6 @@ function deleteDrug($pdo) {
   
   try {
     // Check if drug is being used
-    // ملاحظة: تم تغيير اسم الجدول من session_prescriptions إلى prescriptions بناءً على المخطط الذي قدمته مسبقًا.
     $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM prescriptions WHERE drug_id = ?");
     $stmt->execute([$drug_id]);
     $usage = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
@@ -584,134 +671,6 @@ function deleteDrug($pdo) {
     }
     
   } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
-  }
-}
-
-// Clinic information management
-function getClinicInfo($pdo) {
-  try {
-    $stmt = $pdo->prepare("SELECT * FROM clinic_info LIMIT 1");
-    $stmt->execute();
-    $info = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$info) {
-      // Return default values if no clinic info exists
-      $info = [
-        'name' => '',
-        'address' => '',
-        'phone' => '',
-        'email' => '',
-        'doctor_name' => '',
-        'specialization' => ''
-      ];
-    }
-    
-    echo json_encode($info);
-    
-  } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
-  }
-}
-
-function updateClinicInfo($pdo, $input) {
-  try {
-    // Check if clinic info exists
-    $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM clinic_info");
-    $stmt->execute();
-    $exists = $stmt->fetch(PDO::FETCH_ASSOC)['count'] > 0;
-    
-    if ($exists) {
-      // Update existing record
-      $fields = [];
-      $values = [];
-      
-      $allowed_fields = ['name', 'address', 'phone', 'email', 'doctor_name', 'specialization'];
-      
-      foreach ($allowed_fields as $field) {
-        if (isset($input[$field])) {
-          $fields[] = "$field = ?";
-          $values[] = $input[$field];
-        }
-      }
-      
-      if (!empty($fields)) {
-        $stmt = $pdo->prepare("UPDATE clinic_info SET " . implode(', ', $fields));
-        $stmt->execute($values);
-      }
-    } else {
-      // Insert new record
-      $stmt = $pdo->prepare("
-        INSERT INTO clinic_info (name, address, phone, email, doctor_name, specialization)
-        VALUES (?, ?, ?, ?, ?, ?)
-      ");
-      
-      $stmt->execute([
-        $input['name'] ?? '',
-        $input['address'] ?? '',
-        $input['phone'] ?? '',
-        $input['email'] ?? '',
-        $input['doctor_name'] ?? '',
-        $input['specialization'] ?? ''
-      ]);
-    }
-    
-    echo json_encode([
-      'success' => true,
-      'message' => 'تم تحديث معلومات العيادة بنجاح'
-    ]);
-    
-  } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
-  }
-}
-
-// System settings management
-function getSystemSettings($pdo) {
-  try {
-    $stmt = $pdo->prepare("SELECT * FROM system_settings");
-    $stmt->execute();
-    $settings = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Convert to key-value pairs
-    $result = [];
-    foreach ($settings as $setting) {
-      $result[$setting['setting_key']] = $setting['setting_value'];
-    }
-    
-    echo json_encode($result);
-    
-  } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
-  }
-}
-
-function updateSystemSettings($pdo, $input) {
-  try {
-    $pdo->beginTransaction();
-    
-    foreach ($input as $key => $value) {
-      $stmt = $pdo->prepare("
-        INSERT INTO system_settings (setting_key, setting_value) 
-        VALUES (?, ?) 
-        ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)
-      ");
-      $stmt->execute([$key, $value]);
-    }
-    
-    $pdo->commit();
-    
-    echo json_encode([
-      'success' => true,
-      'message' => 'تم تحديث إعدادات النظام بنجاح'
-    ]);
-    
-  } catch (PDOException $e) {
-    $pdo->rollBack();
     http_response_code(500);
     echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
   }

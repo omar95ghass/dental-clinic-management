@@ -20,7 +20,7 @@ $pdo = $database->connect();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
-// Ensure required tables exist
+// Ensure required tables exist or are updated
 ensureFinancialTables($pdo);
 
 // Main request handler
@@ -48,9 +48,10 @@ try {
     echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
 }
 
-// Create tables if they do not exist
+// Create/alter tables if needed
 function ensureFinancialTables($pdo) {
     try {
+        // Create payments table if not exists
         $pdo->exec(
             "CREATE TABLE IF NOT EXISTS payments (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -63,6 +64,13 @@ function ensureFinancialTables($pdo) {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
 
+        // Ensure payment_method column exists (in case of legacy schema)
+        $stmt = $pdo->query("SHOW COLUMNS FROM payments LIKE 'payment_method'");
+        if ($stmt->rowCount() === 0) {
+            $pdo->exec("ALTER TABLE payments ADD COLUMN payment_method VARCHAR(50) NULL AFTER amount");
+        }
+
+        // Create invoices table if not exists
         $pdo->exec(
             "CREATE TABLE IF NOT EXISTS invoices (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -74,7 +82,6 @@ function ensureFinancialTables($pdo) {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
     } catch (PDOException $e) {
-        // If creation fails, surface error
         http_response_code(500);
         echo json_encode(['error' => 'Failed to ensure financial tables: ' . $e->getMessage()]);
         exit;
@@ -102,7 +109,6 @@ function handleGetRequest($pdo, $action) {
         case 'get_patient_invoices':
             getPatientInvoices($pdo, $patient_id);
             break;
-        // Other GET actions can be added here
         default:
             http_response_code(400);
             echo json_encode(['error' => 'Invalid action']);
@@ -121,7 +127,9 @@ function handlePostRequest($pdo, $action) {
         case 'generate_invoice':
             generateInvoice($pdo, $input);
             break;
-        // Other POST actions can be added here
+        case 'close_account':
+            closeAccount($pdo, $input);
+            break;
         default:
             http_response_code(400);
             echo json_encode(['error' => 'Invalid action']);
@@ -137,7 +145,6 @@ function handlePutRequest($pdo, $action) {
         case 'update_payment':
             updatePayment($pdo, $input);
             break;
-        // Other PUT actions can be added here
         default:
             http_response_code(400);
             echo json_encode(['error' => 'Invalid action']);
@@ -151,7 +158,6 @@ function handleDeleteRequest($pdo, $action) {
         case 'delete_payment':
             deletePayment($pdo);
             break;
-        // Other DELETE actions can be added here
         default:
             http_response_code(400);
             echo json_encode(['error' => 'Invalid action']);
@@ -162,12 +168,10 @@ function handleDeleteRequest($pdo, $action) {
 // Get patient's current balance (total owed - total paid)
 function getPatientBalance($pdo, $patient_id) {
     try {
-        // Calculate total payments made by the patient
         $stmt_payments = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE patient_id = ?");
         $stmt_payments->execute([$patient_id]);
         $total_payments = (float)$stmt_payments->fetchColumn();
 
-        // Calculate total amount from all treatments for this patient (join sessions)
         $stmt_treatments = $pdo->prepare(
             "SELECT COALESCE(SUM((t.cost + COALESCE(t.additional_cost,0)) - ((t.cost + COALESCE(t.additional_cost,0)) * (COALESCE(t.discount,0)/100))), 0)
              FROM treatments t
@@ -274,6 +278,46 @@ function generateInvoice($pdo, $input) {
     }
 }
 
+// Close account by paying the remaining balance
+function closeAccount($pdo, $input) {
+    $patient_id = $input['patient_id'] ?? null;
+    if (!$patient_id) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Patient ID is required']);
+        return;
+    }
+
+    try {
+        $stmt_payments = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE patient_id = ?");
+        $stmt_payments->execute([$patient_id]);
+        $total_payments = (float)$stmt_payments->fetchColumn();
+
+        $stmt_treatments = $pdo->prepare(
+            "SELECT COALESCE(SUM((t.cost + COALESCE(t.additional_cost,0)) - ((t.cost + COALESCE(t.additional_cost,0)) * (COALESCE(t.discount,0)/100))), 0)
+             FROM treatments t
+             JOIN sessions s ON t.session_id = s.id
+             WHERE s.patient_id = ?"
+        );
+        $stmt_treatments->execute([$patient_id]);
+        $total_cost = (float)$stmt_treatments->fetchColumn();
+
+        $balance = $total_cost - $total_payments;
+        if ($balance <= 0) {
+            echo json_encode(['success' => true, 'amount_paid' => 0]);
+            return;
+        }
+
+        $payment_method = $input['payment_method'] ?? 'cash';
+        $stmt = $pdo->prepare("INSERT INTO payments (patient_id, amount, payment_method, notes) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$patient_id, $balance, $payment_method, 'Account closed: paid remaining balance']);
+
+        echo json_encode(['success' => true, 'amount_paid' => $balance]);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+    }
+}
+
 // Update an existing payment
 function updatePayment($pdo, $input) {
     $payment_id = $input['id'] ?? null;
@@ -352,3 +396,4 @@ function deletePayment($pdo) {
         echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
     }
 }
+?>

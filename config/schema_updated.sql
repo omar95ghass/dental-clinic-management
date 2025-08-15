@@ -139,13 +139,25 @@ CREATE TABLE `drugs` (
 -- Table for prescriptions
 CREATE TABLE `prescriptions` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `session_id` INT UNSIGNED NOT NULL,
-    `drug_id` INT UNSIGNED NOT NULL,
-    `dosage` VARCHAR(50) NOT NULL,
-    `is_printed` BOOLEAN NOT NULL DEFAULT 0,
+    `patient_id` INT UNSIGNED NOT NULL,
+    `prescription_date` DATE NOT NULL,
+    `general_notes` TEXT NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON DELETE CASCADE,
-    FOREIGN KEY (`drug_id`) REFERENCES `drugs`(`id`) ON DELETE CASCADE
+    `updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (`patient_id`) REFERENCES `patients`(`id`) ON DELETE CASCADE
+);
+
+-- Table for prescription medicines
+CREATE TABLE `prescription_medicines` (
+    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `prescription_id` INT UNSIGNED NOT NULL,
+    `medicine_name` VARCHAR(255) NOT NULL,
+    `dosage` VARCHAR(100) NOT NULL,
+    `medicine_type` ENUM('tablet', 'syrup', 'injection', 'cream', 'drops', 'other') NOT NULL,
+    `duration` VARCHAR(100) NOT NULL,
+    `notes` TEXT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`prescription_id`) REFERENCES `prescriptions`(`id`) ON DELETE CASCADE
 );
 
 -- Table for patient payments (aligned with API)
@@ -209,7 +221,98 @@ INSERT INTO `treatment_steps` (`treatment_type_id`, `name`, `is_working_length`,
 
 -- Insert default canal types
 INSERT INTO `canal_types` (`name`, `description`) VALUES
+<<<<<<< HEAD
 ('MB', 'Mesiobuccal'),
 ('DB', 'Distobuccal'),
 ('P', 'Palatal');
+=======
+('MB', 'Mesio-Buccal'),
+('MO', 'Mesio-Occlusal'),
+('DB', 'Disto-Buccal'),
+('DL', 'Disto-Lingual'),
+('P', 'Palatal'),
+('ML', 'Mesio-Lingual'),
+('C', 'Central');
+
+-- Insert default drugs
+INSERT INTO `drugs` (`name`, `dosage_options`) VALUES
+('أموكسيسيلين 500mg', '["bid", "tid"]'),
+('إيبوبروفين 400mg', '["bid", "tid", "qid"]'),
+('باراسيتامول 500mg', '["bid", "tid", "qid"]'),
+('كلافوكس 625mg', '["bid", "tid"]'),
+('فولتارين 50mg', '["bid", "tid"]');
+
+-- Insert default users (admin user)
+INSERT INTO `users` (`username`, `password`, `role`) VALUES
+('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin'); -- password: password
+
+
+-- Financial tables for payments and billing
+CREATE TABLE IF NOT EXISTS payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    patient_id INT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    payment_method ENUM('cash', 'card', 'bank_transfer', 'check') DEFAULT 'cash',
+    payment_date DATETIME NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
+);
+
+-- Update appointments table to include separate time field and status
+ALTER TABLE appointments 
+ADD COLUMN IF NOT EXISTS appointment_time TIME,
+ADD COLUMN IF NOT EXISTS status ENUM('scheduled', 'completed', 'cancelled', 'no_show') DEFAULT 'scheduled',
+ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+-- Insert sample payment methods data
+INSERT IGNORE INTO payments (patient_id, amount, payment_method, payment_date, notes) VALUES
+(1, 50000, 'cash', '2024-01-15 10:30:00', 'دفعة أولى للمعالجة اللبية'),
+(1, 25000, 'cash', '2024-01-20 14:15:00', 'دفعة ثانية'),
+(2, 75000, 'card', '2024-01-18 11:00:00', 'دفع كامل للمعالجة المحافظة');
+
+-- Insert sample appointments with time
+INSERT IGNORE INTO appointments (patient_id, appointment_date, appointment_time, notes, status) VALUES
+(1, '2024-02-01', '09:00:00', 'مراجعة المعالجة اللبية', 'scheduled'),
+(2, '2024-02-01', '10:30:00', 'فحص دوري', 'scheduled'),
+(3, '2024-02-02', '14:00:00', 'استكمال المعالجة', 'scheduled');
+
+
+-- Settings tables for system configuration
+CREATE TABLE IF NOT EXISTS clinic_info (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    address TEXT,
+    phone VARCHAR(50),
+    email VARCHAR(100),
+    doctor_name VARCHAR(255),
+    specialization VARCHAR(255),
+    logo_url VARCHAR(255),
+    doctor_signature_url VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS system_settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    setting_key VARCHAR(100) NOT NULL UNIQUE,
+    setting_value TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Insert default clinic info
+INSERT IGNORE INTO clinic_info (name, address, phone, email, doctor_name, specialization) VALUES
+('عيادة الأسنان المتخصصة', 'دمشق - سوريا', '+963-11-1234567', 'info@dentalclinic.sy', 'د. أحمد محمد', 'طب وجراحة الفم والأسنان');
+
+-- Insert default system settings
+INSERT IGNORE INTO system_settings (setting_key, setting_value) VALUES
+('appointment_duration', '30'),
+('working_hours_start', '09:00'),
+('working_hours_end', '17:00'),
+('currency', 'SYP'),
+('language', 'ar'),
+('backup_frequency', 'daily'),
+('session_timeout', '60');
+>>>>>>> d0ea05f709ef83f294a69ef36c401e86b52beb63
 

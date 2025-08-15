@@ -51,7 +51,7 @@
     <aside class="sidebar fixed right-0 top-0 h-full p-6 text-white glass-card">
         <div class="flex items-center justify-center mb-10">
             <h1 class="text-3xl font-bold">
-                <span class="text-white">عيادة</span> <span class="text-[#00d2ff]">الأسنان</span>
+                <span class="text-white" id="receptionistClinicName">عيادة الأسنان</span>
             </h1>
         </div>
         <nav>
@@ -307,17 +307,443 @@
                     إضافة موعد
                 </button>
                 
-                <button onclick="printPrescription()" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 rounded-lg transition-all">
+                <button onclick="showPrescriptionForm()" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 rounded-lg transition-all">
                     <i class="fas fa-prescription ml-2"></i>
                     طباعة الوصفة
                 </button>
             </div>
         </div>
     </div>
+
+    <!-- Prescription Form Modal -->
+    <div id="prescriptionFormModal" class="modal fixed inset-0 flex items-center justify-center hidden z-50 modal-overlay">
+        <div class="glass-card p-8 w-full max-w-4xl mx-4 text-right relative max-h-[90vh] overflow-y-auto">
+            <h3 class="text-2xl font-bold mb-6">نموذج الوصفة الطبية</h3>
+            <button class="close-modal absolute top-4 left-4 text-gray-300 hover:text-white transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            
+            <form id="prescriptionForm" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">اسم المريض</label>
+                        <input type="text" id="prescriptionPatientName" class="w-full p-3 rounded-lg glass-card text-white" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">العمر</label>
+                        <input type="text" id="prescriptionPatientAge" class="w-full p-3 rounded-lg glass-card text-white" readonly>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">رقم الهاتف</label>
+                        <input type="text" id="prescriptionPatientPhone" class="w-full p-3 rounded-lg glass-card text-white" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">العنوان</label>
+                        <input type="text" id="prescriptionPatientAddress" class="w-full p-3 rounded-lg glass-card text-white" readonly>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-2">التاريخ</label>
+                    <input type="date" id="prescriptionDate" class="w-full p-3 rounded-lg glass-card text-white" required>
+                </div>
+                
+                <div id="prescriptionMedicinesContainer">
+                    <h4 class="text-lg font-semibold mb-4">الأدوية الموصوفة</h4>
+                    <div class="prescription-medicine-item bg-white/10 p-4 rounded-lg mb-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">اسم الدواء</label>
+                                <input type="text" name="prescriptionMedicineName[]" class="w-full p-3 rounded-lg glass-card text-white" placeholder="أدخل اسم الدواء" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">الجرعة</label>
+                                <input type="text" name="prescriptionMedicineDosage[]" class="w-full p-3 rounded-lg glass-card text-white" placeholder="مثال: 500mg مرتين يومياً" required>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">نوع الدواء</label>
+                                <select name="prescriptionMedicineType[]" class="w-full p-3 rounded-lg glass-card text-white" required>
+                                    <option value="">اختر نوع الدواء</option>
+                                    <option value="tablet">أقراص</option>
+                                    <option value="syrup">شراب</option>
+                                    <option value="injection">حقن</option>
+                                    <option value="cream">كريم</option>
+                                    <option value="drops">قطرات</option>
+                                    <option value="other">أخرى</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">مدة الاستخدام</label>
+                                <input type="text" name="prescriptionMedicineDuration[]" class="w-full p-3 rounded-lg glass-card text-white" placeholder="مثال: 7 أيام" required>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">ملاحظات</label>
+                            <textarea name="prescriptionMedicineNotes[]" rows="2" class="w-full p-3 rounded-lg glass-card text-white" placeholder="ملاحظات خاصة بالدواء..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-6">
+                    <button type="button" onclick="addPrescriptionMedicine()" class="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-colors">
+                        <i class="fas fa-plus ml-2"></i>
+                        إضافة دواء آخر
+                    </button>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-2">ملاحظات عامة للوصفة</label>
+                    <textarea id="prescriptionGeneralNotes" rows="3" class="w-full p-3 rounded-lg glass-card text-white" placeholder="ملاحظات عامة للوصفة الطبية..."></textarea>
+                </div>
+                
+                <div class="flex justify-end space-x-4 space-x-reverse">
+                    <button type="button" class="close-modal bg-gray-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-600 transition-colors">
+                        إلغاء
+                    </button>
+                    <button type="submit" class="bg-purple-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-purple-700 transition-colors">
+                        <i class="fas fa-print ml-2"></i>
+                        طباعة الوصفة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
     
     <!-- JavaScript -->
     <script src="assets/js/receptionist_dashboard.js"></script>
     <script src="assets/js/settings.js"></script>
+    <script>
+        // Load clinic name from config
+        async function loadReceptionistClinicName() {
+            try {
+                const response = await fetch('../api/settings.php?action=get_clinic_info');
+                const data = await response.json();
+                if (data.success && data.clinic_info) {
+                    document.getElementById('receptionistClinicName').textContent = data.clinic_info.clinic_name;
+                }
+            } catch (error) {
+                console.error('Error loading clinic name:', error);
+            }
+        }
+
+        // Show prescription form
+        function showPrescriptionForm() {
+            const selectedPatient = window.selectedPatient;
+            if (!selectedPatient) {
+                alert('يرجى اختيار مريض أولاً');
+                return;
+            }
+
+            // Fill patient information
+            document.getElementById('prescriptionPatientName').value = selectedPatient.full_name;
+            document.getElementById('prescriptionPatientAge').value = selectedPatient.age || '';
+            document.getElementById('prescriptionPatientPhone').value = selectedPatient.phone_number || '';
+            document.getElementById('prescriptionPatientAddress').value = selectedPatient.address || '';
+            document.getElementById('prescriptionDate').value = new Date().toISOString().split('T')[0];
+
+            // Show modal
+            document.getElementById('prescriptionFormModal').classList.remove('hidden');
+        }
+
+        // Add prescription medicine
+        function addPrescriptionMedicine() {
+            const container = document.getElementById('prescriptionMedicinesContainer');
+            const medicineCount = container.querySelectorAll('.prescription-medicine-item').length + 1;
+            
+            const medicineItem = document.createElement('div');
+            medicineItem.className = 'prescription-medicine-item bg-white/10 p-4 rounded-lg mb-4';
+            medicineItem.innerHTML = `
+                <div class="flex justify-between items-center mb-3">
+                    <h5 class="text-md font-semibold">الدواء #${medicineCount}</h5>
+                    <button type="button" class="text-red-400 hover:text-red-200" onclick="removePrescriptionMedicine(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">اسم الدواء</label>
+                        <input type="text" name="prescriptionMedicineName[]" class="w-full p-3 rounded-lg glass-card text-white" placeholder="أدخل اسم الدواء" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">الجرعة</label>
+                        <input type="text" name="prescriptionMedicineDosage[]" class="w-full p-3 rounded-lg glass-card text-white" placeholder="مثال: 500mg مرتين يومياً" required>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">نوع الدواء</label>
+                        <select name="prescriptionMedicineType[]" class="w-full p-3 rounded-lg glass-card text-white" required>
+                            <option value="">اختر نوع الدواء</option>
+                            <option value="tablet">أقراص</option>
+                            <option value="syrup">شراب</option>
+                            <option value="injection">حقن</option>
+                            <option value="cream">كريم</option>
+                            <option value="drops">قطرات</option>
+                            <option value="other">أخرى</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">مدة الاستخدام</label>
+                        <input type="text" name="prescriptionMedicineDuration[]" class="w-full p-3 rounded-lg glass-card text-white" placeholder="مثال: 7 أيام" required>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">ملاحظات</label>
+                    <textarea name="prescriptionMedicineNotes[]" rows="2" class="w-full p-3 rounded-lg glass-card text-white" placeholder="ملاحظات خاصة بالدواء..."></textarea>
+                </div>
+            `;
+            
+            container.appendChild(medicineItem);
+        }
+
+        // Remove prescription medicine
+        function removePrescriptionMedicine(button) {
+            const container = document.getElementById('prescriptionMedicinesContainer');
+            const medicines = container.querySelectorAll('.prescription-medicine-item');
+            if (medicines.length > 1) {
+                button.closest('.prescription-medicine-item').remove();
+                // Update medicine numbers
+                const remainingMedicines = container.querySelectorAll('.prescription-medicine-item');
+                remainingMedicines.forEach((medicine, index) => {
+                    const title = medicine.querySelector('h5');
+                    title.textContent = `الدواء #${index + 1}`;
+                });
+            }
+        }
+
+        // Handle prescription form submission
+        document.getElementById('prescriptionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const prescriptionData = {
+                patient_id: window.selectedPatient.id,
+                patient_name: formData.get('prescriptionPatientName'),
+                patient_age: formData.get('prescriptionPatientAge'),
+                patient_phone: formData.get('prescriptionPatientPhone'),
+                patient_address: formData.get('prescriptionPatientAddress'),
+                prescription_date: formData.get('prescriptionDate'),
+                general_notes: document.getElementById('prescriptionGeneralNotes').value,
+                medicines: []
+            };
+
+            // Collect medicines data
+            const medicineNames = formData.getAll('prescriptionMedicineName[]');
+            const medicineDosages = formData.getAll('prescriptionMedicineDosage[]');
+            const medicineTypes = formData.getAll('prescriptionMedicineType[]');
+            const medicineDurations = formData.getAll('prescriptionMedicineDuration[]');
+            const medicineNotes = formData.getAll('prescriptionMedicineNotes[]');
+
+            for (let i = 0; i < medicineNames.length; i++) {
+                prescriptionData.medicines.push({
+                    name: medicineNames[i],
+                    dosage: medicineDosages[i],
+                    type: medicineTypes[i],
+                    duration: medicineDurations[i],
+                    notes: medicineNotes[i]
+                });
+            }
+
+            try {
+                const response = await fetch('../api/prescription.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(prescriptionData)
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    // Generate and print prescription
+                    generatePrescriptionPDF(prescriptionData);
+                    document.getElementById('prescriptionFormModal').classList.add('hidden');
+                } else {
+                    alert('خطأ في حفظ الوصفة: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error saving prescription:', error);
+                alert('خطأ في حفظ الوصفة');
+            }
+        });
+
+        // Generate prescription PDF
+        function generatePrescriptionPDF(prescriptionData) {
+            // Create a new window for printing
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="ar" dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>وصفة طبية</title>
+                    <style>
+                        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@200;300;400;500;700;800;900&display=swap');
+                        body {
+                            font-family: 'Tajawal', sans-serif;
+                            margin: 0;
+                            padding: 20px;
+                            background: white;
+                        }
+                        .prescription-header {
+                            text-align: center;
+                            border-bottom: 2px solid #333;
+                            padding-bottom: 20px;
+                            margin-bottom: 30px;
+                        }
+                        .clinic-logo {
+                            max-width: 100px;
+                            max-height: 100px;
+                            margin: 0 auto 10px;
+                        }
+                        .clinic-name {
+                            font-size: 24px;
+                            font-weight: bold;
+                            margin: 10px 0;
+                        }
+                        .clinic-info {
+                            font-size: 14px;
+                            color: #666;
+                        }
+                        .patient-info {
+                            margin-bottom: 30px;
+                        }
+                        .patient-info h3 {
+                            margin: 0 0 10px 0;
+                            color: #333;
+                        }
+                        .patient-details {
+                            display: grid;
+                            grid-template-columns: 1fr 1fr;
+                            gap: 10px;
+                            margin-bottom: 20px;
+                        }
+                        .medicines-section {
+                            margin-bottom: 30px;
+                        }
+                        .medicine-item {
+                            border: 1px solid #ddd;
+                            padding: 15px;
+                            margin-bottom: 15px;
+                            border-radius: 5px;
+                        }
+                        .medicine-header {
+                            font-weight: bold;
+                            margin-bottom: 10px;
+                            color: #333;
+                        }
+                        .medicine-details {
+                            display: grid;
+                            grid-template-columns: 1fr 1fr;
+                            gap: 10px;
+                            margin-bottom: 10px;
+                        }
+                        .notes-section {
+                            margin-top: 30px;
+                            padding-top: 20px;
+                            border-top: 1px solid #ddd;
+                        }
+                        .signature-section {
+                            margin-top: 50px;
+                            text-align: left;
+                        }
+                        .doctor-signature {
+                            max-width: 150px;
+                            max-height: 80px;
+                        }
+                        @media print {
+                            body { margin: 0; }
+                            .no-print { display: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="prescription-header">
+                        <div class="clinic-name" id="clinicName">عيادة الأسنان</div>
+                        <div class="clinic-info">
+                            <div>العنوان: <span id="clinicAddress">عنوان العيادة</span></div>
+                            <div>الهاتف: <span id="clinicPhone">رقم الهاتف</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="patient-info">
+                        <h3>معلومات المريض</h3>
+                        <div class="patient-details">
+                            <div><strong>الاسم:</strong> ${prescriptionData.patient_name}</div>
+                            <div><strong>العمر:</strong> ${prescriptionData.patient_age}</div>
+                            <div><strong>رقم الهاتف:</strong> ${prescriptionData.patient_phone}</div>
+                            <div><strong>العنوان:</strong> ${prescriptionData.patient_address}</div>
+                        </div>
+                        <div><strong>التاريخ:</strong> ${prescriptionData.prescription_date}</div>
+                    </div>
+                    
+                    <div class="medicines-section">
+                        <h3>الأدوية الموصوفة</h3>
+                        ${prescriptionData.medicines.map((medicine, index) => `
+                            <div class="medicine-item">
+                                <div class="medicine-header">الدواء ${index + 1}: ${medicine.name}</div>
+                                <div class="medicine-details">
+                                    <div><strong>الجرعة:</strong> ${medicine.dosage}</div>
+                                    <div><strong>النوع:</strong> ${medicine.type}</div>
+                                    <div><strong>مدة الاستخدام:</strong> ${medicine.duration}</div>
+                                    <div><strong>ملاحظات:</strong> ${medicine.notes || 'لا توجد'}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    ${prescriptionData.general_notes ? `
+                        <div class="notes-section">
+                            <h3>ملاحظات عامة</h3>
+                            <p>${prescriptionData.general_notes}</p>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="signature-section">
+                        <div><strong>التوقيع:</strong></div>
+                        <img src="" alt="توقيع الطبيب" class="doctor-signature" id="doctorSignature">
+                        <div style="margin-top: 10px;"><strong>اسم الطبيب:</strong> <span id="doctorName">د. الطبيب</span></div>
+                    </div>
+                    
+                    <script>
+                        // Load clinic information
+                        async function loadClinicInfo() {
+                            try {
+                                const response = await fetch('../api/settings.php?action=get_clinic_info');
+                                const data = await response.json();
+                                if (data.success && data.clinic_info) {
+                                    document.getElementById('clinicName').textContent = data.clinic_info.clinic_name;
+                                    document.getElementById('doctorName').textContent = data.clinic_info.doctor_name;
+                                    if (data.clinic_info.clinic_logo_url) {
+                                        document.querySelector('.clinic-logo').src = data.clinic_info.clinic_logo_url;
+                                    }
+                                    if (data.clinic_info.doctor_signature_url) {
+                                        document.getElementById('doctorSignature').src = data.clinic_info.doctor_signature_url;
+                                    }
+                                }
+                            } catch (error) {
+                                console.error('Error loading clinic info:', error);
+                            }
+                        }
+                        loadClinicInfo();
+                    </script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadReceptionistClinicName();
+        });
+    </script>
 </body>
 </html>
 

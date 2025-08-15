@@ -79,23 +79,32 @@ function handleGetRequest($pdo, $action) {
 }
 
 function handlePostRequest($pdo, $action) {
-  $input = json_decode(file_get_contents('php://input'), true);
-  
   switch ($action) {
     case 'add_user':
+      $input = json_decode(file_get_contents('php://input'), true);
       addUser($pdo, $input);
       break;
     case 'add_treatment_type':
+      $input = json_decode(file_get_contents('php://input'), true);
       addTreatmentType($pdo, $input);
       break;
     case 'add_drug':
+      $input = json_decode(file_get_contents('php://input'), true);
       addDrug($pdo, $input);
       break;
     case 'update_clinic_info':
+      $input = json_decode(file_get_contents('php://input'), true);
       updateClinicInfo($pdo, $input);
       break;
     case 'update_system_settings':
+      $input = json_decode(file_get_contents('php://input'), true);
       updateSystemSettings($pdo, $input);
+      break;
+    case 'upload_logo':
+      uploadLogo($pdo);
+      break;
+    case 'upload_signature':
+      uploadSignature($pdo);
       break;
     default:
       http_response_code(400);
@@ -599,16 +608,33 @@ function getClinicInfo($pdo) {
     if (!$info) {
       // Return default values if no clinic info exists
       $info = [
-        'name' => '',
-        'address' => '',
-        'phone' => '',
-        'email' => '',
+        'clinic_name' => '',
+        'clinic_address' => '',
+        'clinic_phone' => '',
+        'clinic_email' => '',
         'doctor_name' => '',
-        'specialization' => ''
+        'specialization' => '',
+        'clinic_logo_url' => '',
+        'doctor_signature_url' => ''
       ];
     }
     
-    echo json_encode($info);
+    // Map database fields to expected format
+    $clinicInfo = [
+      'clinic_name' => $info['name'] ?? '',
+      'clinic_address' => $info['address'] ?? '',
+      'clinic_phone' => $info['phone'] ?? '',
+      'clinic_email' => $info['email'] ?? '',
+      'doctor_name' => $info['doctor_name'] ?? '',
+      'specialization' => $info['specialization'] ?? '',
+      'clinic_logo_url' => $info['logo_url'] ?? '',
+      'doctor_signature_url' => $info['doctor_signature_url'] ?? ''
+    ];
+    
+    echo json_encode([
+      'success' => true,
+      'clinic_info' => $clinicInfo
+    ]);
     
   } catch (PDOException $e) {
     http_response_code(500);
@@ -714,6 +740,151 @@ function updateSystemSettings($pdo, $input) {
     $pdo->rollBack();
     http_response_code(500);
     echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+  }
+}
+
+// File upload functions
+function uploadLogo($pdo) {
+  try {
+    if (!isset($_FILES['logo']) || $_FILES['logo']['error'] !== UPLOAD_ERR_OK) {
+      http_response_code(400);
+      echo json_encode(['error' => 'No logo file uploaded or upload error']);
+      return;
+    }
+
+    $file = $_FILES['logo'];
+    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    $maxSize = 5 * 1024 * 1024; // 5MB
+
+    // Validate file type
+    if (!in_array($file['type'], $allowedTypes)) {
+      http_response_code(400);
+      echo json_encode(['error' => 'Invalid file type. Only JPEG, PNG, and GIF are allowed']);
+      return;
+    }
+
+    // Validate file size
+    if ($file['size'] > $maxSize) {
+      http_response_code(400);
+      echo json_encode(['error' => 'File size too large. Maximum size is 5MB']);
+      return;
+    }
+
+    // Create uploads directory if it doesn't exist
+    $uploadDir = '../uploads/';
+    if (!is_dir($uploadDir)) {
+      mkdir($uploadDir, 0755, true);
+    }
+
+    // Generate unique filename
+    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $filename = 'clinic_logo_' . time() . '.' . $extension;
+    $filepath = $uploadDir . $filename;
+
+    // Move uploaded file
+    if (!move_uploaded_file($file['tmp_name'], $filepath)) {
+      http_response_code(500);
+      echo json_encode(['error' => 'Failed to save logo file']);
+      return;
+    }
+
+    // Update clinic info with logo URL
+    $logoUrl = 'uploads/' . $filename;
+    
+    // Check if clinic info exists
+    $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM clinic_info");
+    $stmt->execute();
+    $exists = $stmt->fetch(PDO::FETCH_ASSOC)['count'] > 0;
+    
+    if ($exists) {
+      $stmt = $pdo->prepare("UPDATE clinic_info SET logo_url = ?");
+      $stmt->execute([$logoUrl]);
+    } else {
+      $stmt = $pdo->prepare("INSERT INTO clinic_info (logo_url) VALUES (?)");
+      $stmt->execute([$logoUrl]);
+    }
+
+    echo json_encode([
+      'success' => true,
+      'message' => 'Logo uploaded successfully',
+      'logo_url' => $logoUrl
+    ]);
+
+  } catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Upload error: ' . $e->getMessage()]);
+  }
+}
+
+function uploadSignature($pdo) {
+  try {
+    if (!isset($_FILES['signature']) || $_FILES['signature']['error'] !== UPLOAD_ERR_OK) {
+      http_response_code(400);
+      echo json_encode(['error' => 'No signature file uploaded or upload error']);
+      return;
+    }
+
+    $file = $_FILES['signature'];
+    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    $maxSize = 5 * 1024 * 1024; // 5MB
+
+    // Validate file type
+    if (!in_array($file['type'], $allowedTypes)) {
+      http_response_code(400);
+      echo json_encode(['error' => 'Invalid file type. Only JPEG, PNG, and GIF are allowed']);
+      return;
+    }
+
+    // Validate file size
+    if ($file['size'] > $maxSize) {
+      http_response_code(400);
+      echo json_encode(['error' => 'File size too large. Maximum size is 5MB']);
+      return;
+    }
+
+    // Create uploads directory if it doesn't exist
+    $uploadDir = '../uploads/';
+    if (!is_dir($uploadDir)) {
+      mkdir($uploadDir, 0755, true);
+    }
+
+    // Generate unique filename
+    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $filename = 'doctor_signature_' . time() . '.' . $extension;
+    $filepath = $uploadDir . $filename;
+
+    // Move uploaded file
+    if (!move_uploaded_file($file['tmp_name'], $filepath)) {
+      http_response_code(500);
+      echo json_encode(['error' => 'Failed to save signature file']);
+      return;
+    }
+
+    // Update clinic info with signature URL
+    $signatureUrl = 'uploads/' . $filename;
+    
+    // Check if clinic info exists
+    $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM clinic_info");
+    $stmt->execute();
+    $exists = $stmt->fetch(PDO::FETCH_ASSOC)['count'] > 0;
+    
+    if ($exists) {
+      $stmt = $pdo->prepare("UPDATE clinic_info SET doctor_signature_url = ?");
+      $stmt->execute([$signatureUrl]);
+    } else {
+      $stmt = $pdo->prepare("INSERT INTO clinic_info (doctor_signature_url) VALUES (?)");
+      $stmt->execute([$signatureUrl]);
+    }
+
+    echo json_encode([
+      'success' => true,
+      'message' => 'Signature uploaded successfully',
+      'signature_url' => $signatureUrl
+    ]);
+
+  } catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Upload error: ' . $e->getMessage()]);
   }
 }
 ?>

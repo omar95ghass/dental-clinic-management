@@ -139,13 +139,25 @@ CREATE TABLE `drugs` (
 -- Table for prescriptions
 CREATE TABLE `prescriptions` (
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    `session_id` INT UNSIGNED NOT NULL,
-    `drug_id` INT UNSIGNED NOT NULL,
-    `dosage` VARCHAR(50) NOT NULL,
-    `is_printed` BOOLEAN NOT NULL DEFAULT 0,
+    `patient_id` INT UNSIGNED NOT NULL,
+    `prescription_date` DATE NOT NULL,
+    `general_notes` TEXT NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON DELETE CASCADE,
-    FOREIGN KEY (`drug_id`) REFERENCES `drugs`(`id`) ON DELETE CASCADE
+    `updated_at` TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (`patient_id`) REFERENCES `patients`(`id`) ON DELETE CASCADE
+);
+
+-- Table for prescription medicines
+CREATE TABLE `prescription_medicines` (
+    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    `prescription_id` INT UNSIGNED NOT NULL,
+    `medicine_name` VARCHAR(255) NOT NULL,
+    `dosage` VARCHAR(100) NOT NULL,
+    `medicine_type` ENUM('tablet', 'syrup', 'injection', 'cream', 'drops', 'other') NOT NULL,
+    `duration` VARCHAR(100) NOT NULL,
+    `notes` TEXT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`prescription_id`) REFERENCES `prescriptions`(`id`) ON DELETE CASCADE
 );
 
 -- Table for patient payments
@@ -259,6 +271,8 @@ CREATE TABLE IF NOT EXISTS clinic_info (
     email VARCHAR(100),
     doctor_name VARCHAR(255),
     specialization VARCHAR(255),
+    logo_url VARCHAR(255),
+    doctor_signature_url VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

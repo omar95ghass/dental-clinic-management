@@ -379,7 +379,7 @@ async function loadClinicTab(container) {
         </div>
         
         <div class="glass-card p-6">
-            <form id="clinicInfoForm" class="space-y-4">
+            <form id="clinicInfoForm" class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label for="clinicName" class="block text-sm font-medium mb-1">اسم العيادة</label>
@@ -412,6 +412,44 @@ async function loadClinicTab(container) {
                     <textarea id="clinicAddress" name="address" rows="3" class="w-full p-3 rounded-lg glass-card text-white"></textarea>
                 </div>
                 
+                <div class="border-t border-white/20 pt-6">
+                    <h4 class="text-lg font-semibold mb-4">شعار العيادة</h4>
+                    <div class="flex items-center space-x-4 space-x-reverse">
+                        <div class="flex-1">
+                            <label for="clinicLogo" class="block text-sm font-medium mb-2">اختر ملف الشعار</label>
+                            <input type="file" id="clinicLogo" name="logo" accept="image/*" class="w-full p-3 rounded-lg glass-card text-white">
+                            <p class="text-sm text-gray-300 mt-1">يُسمح بملفات الصور (JPG, PNG, GIF) بحجم أقصى 5MB</p>
+                        </div>
+                        <div class="w-24 h-24 bg-white/10 rounded-lg flex items-center justify-center">
+                            <img id="logoPreview" src="" alt="شعار العيادة" class="max-w-full max-h-full rounded-lg" style="display: none;">
+                            <i class="fas fa-image text-2xl text-gray-400" id="logoPlaceholder"></i>
+                        </div>
+                    </div>
+                    <button type="button" onclick="uploadLogo()" class="mt-3 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-all">
+                        <i class="fas fa-upload ml-2"></i>
+                        رفع الشعار
+                    </button>
+                </div>
+                
+                <div class="border-t border-white/20 pt-6">
+                    <h4 class="text-lg font-semibold mb-4">توقيع الطبيب</h4>
+                    <div class="flex items-center space-x-4 space-x-reverse">
+                        <div class="flex-1">
+                            <label for="doctorSignature" class="block text-sm font-medium mb-2">اختر ملف التوقيع</label>
+                            <input type="file" id="doctorSignature" name="signature" accept="image/*" class="w-full p-3 rounded-lg glass-card text-white">
+                            <p class="text-sm text-gray-300 mt-1">يُسمح بملفات الصور (JPG, PNG, GIF) بحجم أقصى 5MB</p>
+                        </div>
+                        <div class="w-24 h-24 bg-white/10 rounded-lg flex items-center justify-center">
+                            <img id="signaturePreview" src="" alt="توقيع الطبيب" class="max-w-full max-h-full rounded-lg" style="display: none;">
+                            <i class="fas fa-signature text-2xl text-gray-400" id="signaturePlaceholder"></i>
+                        </div>
+                    </div>
+                    <button type="button" onclick="uploadSignature()" class="mt-3 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-all">
+                        <i class="fas fa-upload ml-2"></i>
+                        رفع التوقيع
+                    </button>
+                </div>
+                
                 <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition-all">
                     حفظ معلومات العيادة
                 </button>
@@ -425,15 +463,33 @@ async function loadClinicTab(container) {
 async function loadClinicInfo() {
     try {
         const response = await fetch('../api/settings.php?action=get_clinic_info');
-        const info = await response.json();
+        const data = await response.json();
         
-        // Fill form with clinic info
-        document.getElementById('clinicName').value = info.name || '';
-        document.getElementById('doctorName').value = info.doctor_name || '';
-        document.getElementById('specialization').value = info.specialization || '';
-        document.getElementById('clinicPhone').value = info.phone || '';
-        document.getElementById('clinicEmail').value = info.email || '';
-        document.getElementById('clinicAddress').value = info.address || '';
+        if (data.success && data.clinic_info) {
+            const info = data.clinic_info;
+            
+            // Fill form with clinic info
+            document.getElementById('clinicName').value = info.clinic_name || '';
+            document.getElementById('doctorName').value = info.doctor_name || '';
+            document.getElementById('specialization').value = info.specialization || '';
+            document.getElementById('clinicPhone').value = info.clinic_phone || '';
+            document.getElementById('clinicEmail').value = info.clinic_email || '';
+            document.getElementById('clinicAddress').value = info.clinic_address || '';
+            
+            // Show logo preview if exists
+            if (info.clinic_logo_url) {
+                document.getElementById('logoPreview').src = '../' + info.clinic_logo_url;
+                document.getElementById('logoPreview').style.display = 'block';
+                document.getElementById('logoPlaceholder').style.display = 'none';
+            }
+            
+            // Show signature preview if exists
+            if (info.doctor_signature_url) {
+                document.getElementById('signaturePreview').src = '../' + info.doctor_signature_url;
+                document.getElementById('signaturePreview').style.display = 'block';
+                document.getElementById('signaturePlaceholder').style.display = 'none';
+            }
+        }
         
         // Add form submit handler
         document.getElementById('clinicInfoForm').addEventListener('submit', async (e) => {
@@ -594,5 +650,84 @@ function showNotification(message, type = 'info') {
     setTimeout(() => {
         notification.remove();
     }, 3000);
+}
+
+// File upload functions
+async function uploadLogo() {
+    const fileInput = document.getElementById('clinicLogo');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showNotification('يرجى اختيار ملف الشعار', 'error');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('logo', file);
+    
+    try {
+        const response = await fetch('../api/settings.php?action=upload_logo', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showNotification('تم رفع الشعار بنجاح', 'success');
+            
+            // Update preview
+            document.getElementById('logoPreview').src = '../' + result.logo_url;
+            document.getElementById('logoPreview').style.display = 'block';
+            document.getElementById('logoPlaceholder').style.display = 'none';
+            
+            // Clear file input
+            fileInput.value = '';
+        } else {
+            showNotification(result.error || 'خطأ في رفع الشعار', 'error');
+        }
+    } catch (error) {
+        console.error('Error uploading logo:', error);
+        showNotification('خطأ في رفع الشعار', 'error');
+    }
+}
+
+async function uploadSignature() {
+    const fileInput = document.getElementById('doctorSignature');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showNotification('يرجى اختيار ملف التوقيع', 'error');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('signature', file);
+    
+    try {
+        const response = await fetch('../api/settings.php?action=upload_signature', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showNotification('تم رفع التوقيع بنجاح', 'success');
+            
+            // Update preview
+            document.getElementById('signaturePreview').src = '../' + result.signature_url;
+            document.getElementById('signaturePreview').style.display = 'block';
+            document.getElementById('signaturePlaceholder').style.display = 'none';
+            
+            // Clear file input
+            fileInput.value = '';
+        } else {
+            showNotification(result.error || 'خطأ في رفع التوقيع', 'error');
+        }
+    } catch (error) {
+        console.error('Error uploading signature:', error);
+        showNotification('خطأ في رفع التوقيع', 'error');
+    }
 }
 

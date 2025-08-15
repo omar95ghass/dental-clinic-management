@@ -87,19 +87,10 @@ function handlePostRequest($pdo, $action) {
       addDrug($pdo, $input);
       break;
     case 'update_clinic_info':
-<<<<<<< HEAD
       updateClinicInfoInConfig($input);
       break;
     case 'update_system_settings':
       updateSystemSettingsInConfig($input);
-=======
-      $input = json_decode(file_get_contents('php://input'), true);
-      updateClinicInfo($pdo, $input);
-      break;
-    case 'update_system_settings':
-      $input = json_decode(file_get_contents('php://input'), true);
-      updateSystemSettings($pdo, $input);
->>>>>>> d0ea05f709ef83f294a69ef36c401e86b52beb63
       break;
     case 'upload_logo':
       uploadLogo($pdo);
@@ -691,8 +682,6 @@ function deleteDrug($pdo) {
     echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
   }
 }
-<<<<<<< HEAD
-=======
 
 // Clinic information management
 function getClinicInfo($pdo) {
@@ -983,5 +972,4 @@ function uploadSignature($pdo) {
     echo json_encode(['error' => 'Upload error: ' . $e->getMessage()]);
   }
 }
->>>>>>> d0ea05f709ef83f294a69ef36c401e86b52beb63
 ?>

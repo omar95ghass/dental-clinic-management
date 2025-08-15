@@ -574,7 +574,6 @@
 
         // Generate prescription PDF
         function generatePrescriptionPDF(prescriptionData) {
-            // Create a new window for printing
             const printWindow = window.open('', '_blank');
             printWindow.document.write(`
                 <!DOCTYPE html>
@@ -584,82 +583,18 @@
                     <title>وصفة طبية</title>
                     <style>
                         @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@200;300;400;500;700;800;900&display=swap');
-                        body {
-                            font-family: 'Tajawal', sans-serif;
-                            margin: 0;
-                            padding: 20px;
-                            background: white;
-                        }
-                        .prescription-header {
-                            text-align: center;
-                            border-bottom: 2px solid #333;
-                            padding-bottom: 20px;
-                            margin-bottom: 30px;
-                        }
-                        .clinic-logo {
-                            max-width: 100px;
-                            max-height: 100px;
-                            margin: 0 auto 10px;
-                        }
-                        .clinic-name {
-                            font-size: 24px;
-                            font-weight: bold;
-                            margin: 10px 0;
-                        }
-                        .clinic-info {
-                            font-size: 14px;
-                            color: #666;
-                        }
-                        .patient-info {
-                            margin-bottom: 30px;
-                        }
-                        .patient-info h3 {
-                            margin: 0 0 10px 0;
-                            color: #333;
-                        }
-                        .patient-details {
-                            display: grid;
-                            grid-template-columns: 1fr 1fr;
-                            gap: 10px;
-                            margin-bottom: 20px;
-                        }
-                        .medicines-section {
-                            margin-bottom: 30px;
-                        }
-                        .medicine-item {
-                            border: 1px solid #ddd;
-                            padding: 15px;
-                            margin-bottom: 15px;
-                            border-radius: 5px;
-                        }
-                        .medicine-header {
-                            font-weight: bold;
-                            margin-bottom: 10px;
-                            color: #333;
-                        }
-                        .medicine-details {
-                            display: grid;
-                            grid-template-columns: 1fr 1fr;
-                            gap: 10px;
-                            margin-bottom: 10px;
-                        }
-                        .notes-section {
-                            margin-top: 30px;
-                            padding-top: 20px;
-                            border-top: 1px solid #ddd;
-                        }
-                        .signature-section {
-                            margin-top: 50px;
-                            text-align: left;
-                        }
-                        .doctor-signature {
-                            max-width: 150px;
-                            max-height: 80px;
-                        }
-                        @media print {
-                            body { margin: 0; }
-                            .no-print { display: none; }
-                        }
+                        body { font-family: 'Tajawal', sans-serif; margin: 0; padding: 20px; background: white; }
+                        .clinic-logo { max-width: 100px; max-height: 100px; margin: 0 auto 10px; }
+                        .clinic-name { font-size: 24px; font-weight: bold; margin: 10px 0; text-align:center }
+                        .clinic-info { font-size: 14px; color: #666; text-align:center; }
+                        .patient-info { margin-bottom: 30px; }
+                        .patient-details { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+                        .medicines-section { margin-bottom: 30px; }
+                        .medicine-item { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 5px; }
+                        .notes-section { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; }
+                        .signature-section { margin-top: 50px; text-align: left; }
+                        .doctor-signature { max-width: 150px; max-height: 80px; }
+                        @media print { body { margin: 0; } .no-print { display: none; } }
                     </style>
                 </head>
                 <body>
@@ -686,13 +621,11 @@
                         <h3>الأدوية الموصوفة</h3>
                         ${prescriptionData.medicines.map((medicine, index) => `
                             <div class="medicine-item">
-                                <div class="medicine-header">الدواء ${index + 1}: ${medicine.name}</div>
-                                <div class="medicine-details">
-                                    <div><strong>الجرعة:</strong> ${medicine.dosage}</div>
-                                    <div><strong>النوع:</strong> ${medicine.type}</div>
-                                    <div><strong>مدة الاستخدام:</strong> ${medicine.duration}</div>
-                                    <div><strong>ملاحظات:</strong> ${medicine.notes || 'لا توجد'}</div>
-                                </div>
+                                <div><strong>الدواء ${index + 1}:</strong> ${medicine.name}</div>
+                                <div><strong>الجرعة:</strong> ${medicine.dosage}</div>
+                                <div><strong>النوع:</strong> ${medicine.type}</div>
+                                <div><strong>مدة الاستخدام:</strong> ${medicine.duration}</div>
+                                <div><strong>ملاحظات:</strong> ${medicine.notes || 'لا توجد'}</div>
                             </div>
                         `).join('')}
                     </div>
@@ -709,34 +642,31 @@
                         <img src="" alt="توقيع الطبيب" class="doctor-signature" id="doctorSignature">
                         <div style="margin-top: 10px;"><strong>اسم الطبيب:</strong> <span id="doctorName">د. الطبيب</span></div>
                     </div>
-                    
-                    <script>
-                        // Load clinic information
-                        async function loadClinicInfo() {
-                            try {
-                                const response = await fetch('../api/settings.php?action=get_clinic_info');
-                                const data = await response.json();
-                                if (data.success && data.clinic_info) {
-                                    document.getElementById('clinicName').textContent = data.clinic_info.clinic_name;
-                                    document.getElementById('doctorName').textContent = data.clinic_info.doctor_name;
-                                    if (data.clinic_info.clinic_logo_url) {
-                                        document.querySelector('.clinic-logo').src = data.clinic_info.clinic_logo_url;
-                                    }
-                                    if (data.clinic_info.doctor_signature_url) {
-                                        document.getElementById('doctorSignature').src = data.clinic_info.doctor_signature_url;
-                                    }
-                                }
-                            } catch (error) {
-                                console.error('Error loading clinic info:', error);
-                            }
-                        }
-                        loadClinicInfo();
-                    </script>
                 </body>
                 </html>
             `);
             printWindow.document.close();
-            printWindow.print();
+
+            // بعد تحميل المستند نحقن البيانات
+            printWindow.onload = async () => {
+                try {
+                    const response = await fetch('../api/settings.php?action=get_clinic_info');
+                    const data = await response.json();
+                    if (data.success && data.clinic_info) {
+                        printWindow.document.getElementById('clinicName').textContent = data.clinic_info.clinic_name;
+                        printWindow.document.getElementById('doctorName').textContent = data.clinic_info.doctor_name;
+                        if (data.clinic_info.clinic_logo_url) {
+                            printWindow.document.querySelector('.clinic-logo').src = data.clinic_info.clinic_logo_url;
+                        }
+                        if (data.clinic_info.doctor_signature_url) {
+                            printWindow.document.getElementById('doctorSignature').src = data.clinic_info.doctor_signature_url;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading clinic info:', error);
+                }
+                printWindow.print();
+            };
         }
 
         // Initialize
